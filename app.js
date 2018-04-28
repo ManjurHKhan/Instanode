@@ -9,12 +9,13 @@ const pg = require('pg');
 var nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
 const elasticsearch = require('elasticsearch');
+var request = require('request');
 
+const LOAD_BALANCER_IP = "130.245.168.67"
 
 /** elastic search set up **/
 const INDEX_NAME = "insta_index"
 const DOC_TYPE="posts"
-
 
 var e_client = new elasticsearch.Client({
   host: '130.245.171.41:9200',
@@ -64,6 +65,87 @@ app.use(bodyParser.json());
 app.use(session({secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq'}));
 var user_session;
 
+
+
+
+/** sign up start **/
+
+app.post('/adduser', function(req, res)) {
+    console.log("for a post reuqest on /adduser");
+
+    /** checking if data exists **/
+    var data = req.body;
+    if (data == null) {
+        return res.json({status: "error", error: "No data was sent on res.body"});
+    }
+    console.log(data);
+
+    /** Defining variables **/
+    var username = data.username == null ? null : data.username;
+    var email = data.email == null ? null : data.email;
+    var password = data.password = null ? null : data.password;
+
+    if (username == null || email == null || password == null) {
+        return res.json({status: "error", error: "not valid data"});
+    }
+
+    /** check if the user already exists **/
+    db.one("SELECT * FROM USERS where username=$1 or email=$2);", [username, email])
+        .then(function (new_data) {
+            if(new_data == null || new_data.length == 0) {
+                console.log("user " + username + " does not exist. returning and adding user");
+                res.json({status: "OK"});
+                
+                var random_num = Math.random()*Date.now() | 0;
+                var salty = crypto.createHash('md5').update(random_num.toString()).digest('hex');
+                var passwd = crypto.createHash('md5').update(password + salty).digest('hex');
+                
+                random_num = (Math.random()*Date.now() | 0).string();
+
+                var val_key = crypto.createHash('md5').update(random_num).digest('hex');
+                console.log("INSERT INTO USERS (username,password,email,salt) VALUES ({0},{1},{2},{3})".format(username,passwd,email,salty))
+
+                db.none("INSERT INTO USERS (username,password,email,salt) VALUES ($1,$2,$3,$4)", [username,passwd,email,salty])
+                    .then(function() {
+                        console.log("added new user :D");
+                    }) .catch(function (err) {
+                        console.log("uh something went wrong when doing add user");
+                        console.log(err);
+                    });
+
+                db.none("INSERT INTO VALIDATE (username,validkey) VALUES ($1,$2)", [username,val_key])
+                    .then(function() {
+                        console.log("validation key successfully added");
+                    }) .catch(function (err) {
+                        console.log("validation key adding got wrong");
+                        console.log(err);
+                    });
+
+                // send the email
+                request({
+                    uri: LOAD_BALANCER_IP + '?to={0}&text={1}'.format(encodeURIComponent(email), encodeURIComponent(random_num)),
+                    method : "GET",
+                    followRedirect: true
+                }, function(err) {
+                    if(err){
+                        console.log("err in sending email");
+                        console.log(err);
+                    }
+                });
+
+            } else {
+                return res.json({status: "error", error: "User exists"});
+            }
+        }) .catch(function (err) {
+            console.log("ERRR :(");
+            return res.json({status: "error", error: "error on db function"});
+        });
+
+}
+
+
+
+
 /** add item start **/
 
 app.post('/additem', function (req, res) {
@@ -75,7 +157,10 @@ app.post('/additem', function (req, res) {
     if(user_session == null) {
         return res.json({status: "error", error: "User is not logged in"});
     }
-
+    var data = req.body;
+    if (data == null) {
+        return res.json({status: "error", error: "No data was sent on res.body"});
+    }
     console.log(data);
 
     var user_id = user_session.userID;
