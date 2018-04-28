@@ -193,9 +193,22 @@ app.post('/login', function (req, res) {
             // });
     }
     // assuming that if userid is set up then the user is correct
-    res.json({status: 'OK'});
+    return res.json({status: 'OK'});
 });
 
+
+/** logout start **/
+
+app.post("/logout", function (req, res) {
+    console.log("At logout");
+    req.session.destroy(function(err) {
+        if(err) {
+            console.log("error happened when destroying session cookie");
+            console.log(err);
+        }
+        return res.json({status: 'OK'});
+    });
+});
 
 /** add item start **/
 
