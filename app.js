@@ -155,7 +155,8 @@ app.post('/login', function (req, res) {
     console.log("doing login");
     user_session = req.session;
     user_id = user_session.userID;
-    if(user_id != null) {
+    console.log(user_id,user_id != null )
+    if(user_id == null) {
         // db.one("SELECT username FROM USERS where username=$1 and validated is True", [user_id])
         //     .then(function (new_data) {
         //         if(new_data == null || new_data.length == 0) {
@@ -171,33 +172,37 @@ app.post('/login', function (req, res) {
         if (username == null || password == null) {
             return res.json({status: "error", error: "not valid data"});
         }
-        db.one("SELECT salt, password FROM USERS where username=%s and validated is True")
+        // validate loging
+        db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
-                    res.json({status: 'error', error: 'User does not exists'});
+                    return res.json({status: 'error', error: 'User does not exists'});
                 }
                 var salt = new_data[0];
                 var secret_pass = new_data[1];
                 var passwd = crypto.createHash('md5').update(password + salt).digest('hex');
                 if(passwd == secret_pass) {
                     // set session
+                    console.log("hello????")
                     user_session.userID = username;
-                    res.json({status: 'OK'});
+                    return res.json({status: 'OK'});
                 } else {
-                    res.json({status: 'error', error: 'Password does not match'});
+                    return res.json({status: 'error', error: 'Password does not match'});
                 }
             }) .catch(function (err) {
                 console.log("Error happened while doing login");
                 console.log(err);
-                res.json({status: 'error', error: 'Connection error happened'});
+                return res.json({status: 'error', error: 'Connection error happened'});
             });
 
             // }) .catch (function (err) {
             //     res.json({status: 'error', error: 'Connection error happened'});
             // });
+    }else{
+        // assuming that if userid is set up then the user is correct
+        console.log("userid == false")
+        return res.json({status: 'OK'});
     }
-    // assuming that if userid is set up then the user is correct
-    return res.json({status: 'OK'});
 });
 
 
@@ -552,6 +557,7 @@ app.post("/follow", function(req, res) {
 
     var user_session =  req.session;
     username = user_session.userID;
+    console.log(user_session);
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in while trying to Follow"});
     }
