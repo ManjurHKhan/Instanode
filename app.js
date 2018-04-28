@@ -382,3 +382,35 @@ app.post('/additem', function (req, res) {
 
 });
 
+
+
+/** get item **/
+
+app.get("/item/:id", function(req, res) {
+    
+    var id = req.param('id');
+
+    console.log("doing get item for == " + id);
+
+    user_session = req.session;
+    username = user_session.userID;
+
+    if(username == null) {
+        return res.json({status: "error", error: "User is not logged in"});
+    }
+
+    db.any("SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid FROM posts FULL OUTER JOIN user_media ON posts.postid = user_media.postid WHERE posts.postid = $1", [id])
+        .then (function (new_data) {
+            if(new_data == null || new_data.length == 0) {
+                return res.json({status: "error", error: "item not found"});
+            }
+
+            
+
+        }) .catch (function (err) {
+            console.log("error happeend while fetching item");
+        });
+})
+
+
+
