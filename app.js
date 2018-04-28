@@ -362,6 +362,7 @@ app.post('/additem', function (req, res) {
             db.none("INSERT INTO user_media(username, postid, mediaid) VALUES ($1, $2, $3);",[user_cookie, postid, media[i]])
                 .then(function () {
                 // console.log("media done");
+
                 }).catch(function (err) {
                     console.log("ERRR :( bno pare 0 media",err);
                 //return next(err);
@@ -410,6 +411,127 @@ app.get("/item/:id", function(req, res) {
         }) .catch (function (err) {
             console.log("error happeend while fetching item");
         });
+})
+
+
+//===============================================================//
+
+/** Follow a user **/
+app.get("/follow", function(req, res) {
+
+    var user_session =  req.session;
+    username = user_session.userID;
+    if(username == null) {
+        return res.json({status: "error", error: "User is not logged in while trying to Follow"});
+    }
+
+    var data = req.body;
+    if (data == null){
+        return res.json({status: "error", error: "No data was sent for follow endpoint"});
+
+    }
+    var user_following = data.user == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+    var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
+    if (follow) {
+
+        db.none ("INSERT INTO followers (username, follows) VALUES($1 , $2);",[username,user_following ])
+            .then(function (new_data) {
+                console.log("inserted following relation fine")
+                if(new_data == null || new_data.length == 0) {
+                    return res.json({status: "error", error: "item not found"});
+                }
+            })
+            .catch(function (error) {
+                console.log("error with following")
+                if(error == null || new_data.length == 0) {
+                    return res.json({status: "error", error: "item not found"});
+                }
+            });
+    } else{
+
+        db.none ("DELETE FROM followers WHERE username=$1 and follows=$2;", [username,user_following ])
+            .then(function (new_data) {
+                console.log("deleted following relation fine")
+            })
+            .catch(function (error) {
+                console.log("error with unfollowing")
+               
+            });
+    }
+}
+
+/** like an id with the logged in user **/
+
+app.get("/item/:id/like", function(req, res) {
+
+    var id = req.param('id');
+
+    console.log("liking post with id" + id)
+
+    var user_session =  req.session;
+    username = user_session.userID;
+
+    if(username == null) {
+        return res.json({status: "error", error: "User is not logged in while trying to like"});
+    }
+
+    var data = req.body;
+    if (data == null) {
+        return res.json({status: "error", error: "No data was sent for like endpoint"});
+    }
+    var like_data = data.like;
+    var like = true;
+    console.log(like_data);
+    like = data.like == null ? true : data.like.trim().toLowerCase() == "true":
+    query = ""
+    if (like) {
+        db.task("INSERT INTO likes (username, postid) VALUES (%s , %s);")
+            .then (function (){
+
+                db.none("UPDATE posts set numliked = numliked+1 where postid=$1);", [id])
+                    .then(function () {
+                        return jsonify(status="OK",msg="Liked and incremented like count in post")
+                    }) .catch(function (err) {
+                        console.log("ERRR :( with updating like count", err);
+                    });
+                }) 
+        .catch (function(err)){
+                console.log("error happened while inserting to like table", err);
+        });
+    }
+    else{
+        db.task("DELETE FROM likes where username=%s and postid=$1 RETURNING *")
+            .then (function (){
+
+                db.none("UPDATE posts set numliked = numliked-1 where postid=$1);", [id])
+                    .then(function () {
+                        return jsonify(status="OK",msg="Unliked and decremented like count in post")
+                    }) .catch(function (err) {
+                        console.log("Error happened while unliking to updating like table",err);
+                });
+
+            }) .catch (function(err)){
+                console.log("error happened while unliking to updating like table",err);
+            });
+
+    }
+
+}
+
+
+
+//============== SETTING UP NON-API ENDPOINTS FOR SANITY=============================================//
+
+app.get('/', function (req, res) {
+    res.send('Hello File upload is only a click away. jk');
+})
+
+
+app.listen(8000, function () {
+    console.log('API Application started on port 8000')
 })
 
 
