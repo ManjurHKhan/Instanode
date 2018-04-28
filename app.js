@@ -122,6 +122,7 @@ app.post('/adduser', function(req, res)) {
                     });
 
                 // send the email
+                // TODO figure out what to do with email. I vote for letting the email be handled by storage server
                 request({
                     uri: LOAD_BALANCER_IP + '?to={0}&text={1}'.format(encodeURIComponent(email), encodeURIComponent(random_num)),
                     method : "GET",
@@ -144,6 +145,56 @@ app.post('/adduser', function(req, res)) {
 }
 
 
+/** login starts **/
+
+app.post('/login', function (req, res) {
+    console.log("doing login");
+    user_session = req.session;
+    user_id = user_session.userID;
+    if(user_id != null) {
+        // db.one("SELECT username FROM USERS where username=$1 and validated is True", [user_id])
+        //     .then(function (new_data) {
+        //         if(new_data == null || new_data.length == 0) {
+        //             return res.json({status: 'OK'});
+        //         }
+        var data = req.body;
+        if (data == null) {
+            return res.json({status: "error", error: "No data was sent on res.body"});
+        }
+        var username = data.username == null ? null : data.username;
+        var password = data.password = null ? null : data.password;
+
+        if (username == null || password == null) {
+            return res.json({status: "error", error: "not valid data"});
+        }
+        db.one("SELECT salt, password FROM USERS where username=%s and validated is True")
+            .then(function (new_data) {
+                if(new_data == null) {
+                    res.json({status: 'error', error: 'User does not exists'});
+                }
+                var salt = new_data[0];
+                var secret_pass = new_data[1];
+                var passwd = crypto.createHash('md5').update(password + salt).digest('hex');
+                if(passwd == secret_pass) {
+                    // set session
+                    user_session.userID = username;
+                    res.json({status: 'OK'});
+                } else {
+                    res.json({status: 'error', error: 'Password does not match'});
+                }
+            }) .catch(function (err) {
+                console.log("Error happened while doing login");
+                console.log(err);
+                res.json({status: 'error', error: 'Connection error happened'});
+            });
+
+            // }) .catch (function (err) {
+            //     res.json({status: 'error', error: 'Connection error happened'});
+            // });
+    }
+    // assuming that if userid is set up then the user is correct
+    res.json({status: 'OK'});
+});
 
 
 /** add item start **/
