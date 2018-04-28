@@ -62,7 +62,11 @@ var storage = multer.diskStorage({
 var app = express()
 app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(session({secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq'}));
+app.use(session({
+    secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq',
+    resave: true,
+    saveUninitialized: true
+}));
 var user_session;
 
 
@@ -70,7 +74,7 @@ var user_session;
 
 /** sign up start **/
 
-app.post('/adduser', function(req, res)) {
+app.post('/adduser', function(req, res) {
     console.log("for a post reuqest on /adduser");
 
     /** checking if data exists **/
@@ -142,7 +146,7 @@ app.post('/adduser', function(req, res)) {
             return res.json({status: "error", error: "error on db function"});
         });
 
-}
+});
 
 
 /** login starts **/
@@ -416,8 +420,135 @@ app.get("/item/:id", function(req, res) {
 
 //===============================================================//
 
+
+app.get("/user/<username>", function(req, res) {
+    var user_session = req.session;
+    var username = user_session.userID;
+
+    if(username == null) {
+        return res.json({status: "error", error: "No user logged in... boo"});
+    }
+    ret_user = {'email':None, followers:0, following:0}
+  
+    db.task ("SELECT email FROM users where username = $1",[username])
+        .then(function (new_data) {
+            //console.log("selecting followers of username relation fine")
+            if (new_data == null || new_data.length == 0){
+                return res.json ({status: "error", error: "User info not found or missing - email"});
+            }else{
+                ret_user ["email"] = new_data[0];
+                db.any("SELECT COUNT(follows) FROM users where follows = $1", [username])
+                    .then(function (following_data){
+                        if (following_data == null || following_data.length == 0){
+                            return res.json ({status: "error", error: "User info not found or missing - email"});
+                        }
+                        ret_user[following] = following_data[0]
+
+                        db.any("SELECT COUNT(follows) FROM users where username = $1", [username])
+                            .then(function (followers_data) {
+                                if (followers_data == null || followers_data.length == 0){
+                                    return res.json ({status: "error", error: "User info not found or missing - follower count"});
+                                }
+                                ret_user[followers] = followers_data[0];
+                            })
+                            .catch(function (followers_err) {
+                                console.log("something went wrong with finding follower counts", followers_err)
+                            })
+                    }
+                    .catch(function(errror){
+                        console.log("something went wrong finding following counts",errror);
+                    }))
+
+            }
+            
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting followers of user failed"});
+            }
+        });
+});
+
+
+
+/** Get all users a user is being followed by **/
+app.get("/user/<username>/following", function(req, res) {
+    var username = req.param.username;
+    if(username == null) {
+        return res.json({status: "error", error: "No user specified - who we are looking for?"});
+    }
+
+    var limit = 50;
+    var data = req.body;
+    if (data != null){
+        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+    }
+    var user_following = data.user == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+
+    db.any ("SELECT username FROM followers where follows=$1 LIMIT $2;",[username,limit])
+        .then(function (new_data) {
+            //console.log("selecting followers of username relation fine")
+            followers = []
+            for (var x = 0; x < new_data.length; x++){
+                for (var row = 0; row < new_data[x].length; row++){
+                    followers.push(new_data[row][x]);
+                }
+            }
+            return res.json({status: "OK", users: followers});
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting followers of user failed"});
+            }
+        });
+});
+
+
+/** Get all users a user is following **/
+app.get("/user/<username>/following", function(req, res) {
+    var username = req.param.username;
+    if(username == null) {
+        return res.json({status: "error", error: "No user specified - who we are looking for?"});
+    }
+
+    var limit = 50;
+    var data = req.body;
+    if (data != null){
+        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+    }
+    var user_following = data.user == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+
+
+    db.any ("SELECT follows FROM followers where username=$1 LIMIT $2;",[username,limit])
+        .then(function (new_data) {
+            //console.log("selecting follows ;) relation fine")
+            followings = []
+            for (var x = 0; x < new_data.length; x++){
+                for (var row = 0; row < new_data[x].length; row++){
+                    followings.push(new_data[row][x]);
+                }
+            }
+            return res.json({status: "OK", users: followings});
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting following failed not found"});
+            }
+    });
+});
+
+
 /** Follow a user **/
-app.get("/follow", function(req, res) {
+app.post("/follow", function(req, res) {
 
     var user_session =  req.session;
     username = user_session.userID;
@@ -461,11 +592,11 @@ app.get("/follow", function(req, res) {
                
             });
     }
-}
+});
 
 /** like an id with the logged in user **/
 
-app.get("/item/:id/like", function(req, res) {
+app.post("/item/:id/like", function(req, res) {
 
     var id = req.param('id');
 
@@ -485,7 +616,7 @@ app.get("/item/:id/like", function(req, res) {
     var like_data = data.like;
     var like = true;
     console.log(like_data);
-    like = data.like == null ? true : data.like.trim().toLowerCase() == "true":
+    like = data.like == null ? true : data.like.trim().toLowerCase() == "true";
     query = ""
     if (like) {
         db.task("INSERT INTO likes (username, postid) VALUES (%s , %s);")
@@ -498,7 +629,7 @@ app.get("/item/:id/like", function(req, res) {
                         console.log("ERRR :( with updating like count", err);
                     });
                 }) 
-        .catch (function(err)){
+        .catch (function(err){
                 console.log("error happened while inserting to like table", err);
         });
     }
@@ -513,13 +644,13 @@ app.get("/item/:id/like", function(req, res) {
                         console.log("Error happened while unliking to updating like table",err);
                 });
 
-            }) .catch (function(err)){
+            }) .catch (function(err){
                 console.log("error happened while unliking to updating like table",err);
             });
 
     }
 
-}
+});
 
 
 
