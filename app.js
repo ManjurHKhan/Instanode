@@ -10,6 +10,7 @@ var nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
 const elasticsearch = require('elasticsearch');
 var request = require('request');
+var util = require('util');
 
 const LOAD_BALANCER_IP = "130.245.168.67"
 
@@ -392,8 +393,8 @@ app.get("/item/:id", function(req, res) {
 
     console.log("doing get item for == " + id);
 
-    user_session = req.session;
-    username = user_session.userID;
+    var user_session = req.session;
+    var username = user_session.userID;
 
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in"});
@@ -404,13 +405,283 @@ app.get("/item/:id", function(req, res) {
             if(new_data == null || new_data.length == 0) {
                 return res.json({status: "error", error: "item not found"});
             }
+            var media = [];
+            for (var i = 0; i < new_data.length; i++) {
+                if(new_data[i][8] != null) {
+                    media.push(new_data[i][8]);
+                }
+            }
+            var i = new_data[0];
+            item = {'id':i[1], 
+                    'username':i[0], 
+                    'property':
+                        {
+                            'likes':i[7]
+                        }, 
+                    'retweeted':i[6],
+                    'content':i[3],
+                    'timestamp': Date.parse(str(i[2]).split('.')[0]), 
+                    'childType':i[4],
+                    'parent':i[5], 
+                    'media':media
+                }
 
-            
+            return res.json({status="OK", item = item});
 
         }) .catch (function (err) {
             console.log("error happeend while fetching item");
+            console.log(err);
+            return res.json({status: "error", error: "connection error while getting post by id"});
         });
+});
+
+
+/** search item **/
+
+app.post("/search", function(req, res) {
+
+    console.log("in search");
+    var starting_time = Date.now();
+
+    var user_session = req.session;
+    var user_cookie = user_session.userID;
+
+    if(user_cookie == null) {
+        return res.json({status: "error", error: "User is not logged in"});
+    }
+
+    var data = req.body;
+
+    if(data != null) {
+        console.log(data);
+
+        q_data = [];
+
+        dic = {
+            "interest": {  "time" : {"order" : "asc"}},
+            "rank": {  "sume(likes+ retweets) " : {"order" : "asc"}},
+            "parent" : {"match"},
+            "hasMedia" : {"true"},
+        };
+
+        var limit = 25;
+        if (data.limit != null) {
+            limit = data.limit > 0 ? data.limit < 101 ? data.limit : 25 : 25;
+        }
+        timestamp = Math.floor(Date.now() / 1000);
+        if (data.timestamp != null) {
+            timestamp = date.timestamp;
+        }
+        timestamp = new Date(timestamp);
+        timestamp = timestamp.toISOString();
+        console.log("timestamp = " + timestamp);
+
+        var username = null;
+        var q_string = null;
+        var following = true;
+        q_data.push(timestamp);
+
+        query = "SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid FROM (%s) as posts "
+                    
+        joinquery = "%s user_media on posts.postid = user_media.postid "
+        secretjoin = "FULL OUTER JOIN"
+        miniquery = "SELECT username, postid, date, content, child_type, parent_id, retweet_cnt, numliked, COALESCE(posts.retweet_cnt) + COALESCE(posts.numliked) as sum from posts "
+
+        var hasMedia = false;
+        
+        if (data.hasMedia != null) {
+            hasMedia = data.hasMedia;
+            if(hasMedia) {
+                joinquery = util.format(joinquery, "INNER JOIN");
+                secretjoin = "INNER JOIN";
+                miniquery = util.format("SELECT DISTINCT(posts.*), COALESCE(posts.retweet_cnt) + COALESCE(posts.numliked) as sum FROM posts %s user_media on posts.postid = user_media.postid " , secretjoin);
+            } else {
+                joinquery = util.format(joinquery, "FULL OUTER JOIN");
+            }
+        } else {
+            joinquery = util.format(joinquery, "FULL OUTER JOIN");
+        }
+
+        console.log("miniquery");
+
+        miniquery += "WHERE date <= %s ";
+        
+        if (data.username != null) {
+            var username = data.username;
+            miniquery += "AND posts.username = %s";
+            q_data.push(username);
+        }
+        var following = true;
+        if (data.following != null) {
+            following = data.following;
+        }
+        var where_query = "";
+        var hit_ids = [];
+        if (data.q != null) {
+            es_body = {
+                        "query": {
+                            "bool": {
+                                "must": [
+                                {  "match": { "content": "%s"%(data["q"].replace("\n",""))} }
+                                // #,
+                                // # { "range": { "timestamp":  {
+                                // #             "gte" : timestamp,
+                                // #             }
+                                // #             } KWdeemglJxiHVrV
+                                // #             }
+                                ] 
+
+                                // # }
+                               }
+                            }
+                        }
+
+            // need to run the elastic search now lol
+            e_client.search({
+                index: INDEX_NAME,
+                doc_type: 'posts',
+                body: es_body
+            }, function (err, response, status) {
+                if(err) {
+                    console.log("SEARCH ERROR " + err);
+                } else {
+                    console.log("-----response hit ------");
+                    console.log(response);
+                    response.hits.hits.forEach(function(hit) {
+                        hit_ids.push("'" + hit._id +"'");
+                        console.log(hits);
+                    });
+                }
+                if (hit_ids.length > 0) {
+                    str_hirts = '(' + hit_ids.toString() + ')';
+                    miniquery += " AND  posts.postid in " + str_hits + " ";
+                } else {
+                    miniquery += " AND posts.content LIKE %s ";
+                    q_data.push("%" + data.q + "%");
+                }
+            });
+
+        }
+        var rank_order = "";
+        if (data.rank != null) {
+            if(data.rank == "time") {
+                rank_order = "posts.date DESC";
+            } else if (data.rank = "interest") {
+                rank_order = "sum DESC";
+            } else {
+                res.json({status="error", error="invalid Rank type passed in"});
+            }
+        } else {
+            rank_order = "sum DESC";
+        }
+
+        if (data.parent != null) {
+            var parent = data.parent;
+            miniquery += "AND parent_id = %s ";
+            q_data.push(parent);
+        }
+        if (data.replies != null) {
+            if (data.replies == false) {
+                miniquery += "AND (child_type != %s  OR child_type is NULL) ";
+                q_data.push("reply");
+            }
+        }
+
+        if(data.following != null) {
+            miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
+            q_data.push(user_cookie);
+        }
+
+        order_query = "ORDER BY " + rank_order  + ", posts.postid";
+        miniquery += order_query;
+        miniquery += " LIMIT %s";
+        q_data.push(limit)
+        console.log("Q_DATA IS ");
+        console.log(q_data);
+
+        query = util.format(query , (miniquery + joinquery + where_query+ order_query));
+        console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
+        new_query = fix_string_formatting(query, q_data);
+        console.log("new_query is ============= ", new_query);
+
+        db.any(query, q_data)
+            .then(function (new_data) {
+                if (new_data.length == 0) {
+                    return res.json({status: "OK", items: []});
+                }
+                ret_items = [];
+                i = items[0];
+                while (items.length > 0 and i[1] == null) {
+                    items.slice(1);
+                    i = items[0];
+                }
+                d = {'id':i[1], 
+                    'username':i[0], 
+                    'property':
+                        {
+                            'likes':i[7]
+                        }, 
+                    'retweeted':i[6],
+                    'content':i[3],
+                    'timestamp': Date.parse(str(i[2]).split('.')[0]), 
+                    'childType':i[4],
+                    'parent':i[5]
+                };
+
+                current = d['id'];
+                media = [];
+
+                for(var i = 0; i < items.length; i++) {
+                    if (items[i] == null || items[i] != current) {
+                        d['meida'] = media;
+                        ret_items.push(d);
+                    }
+                    if (items[i] != null) {
+                        media = [];
+                        if (i[8] != null) {
+                            d = {'id':i[1], 
+                                'username':i[0], 
+                                'property':
+                                    {
+                                        'likes':i[7]
+                                    }, 
+                                'retweeted':i[6],
+                                'content':i[3],
+                                'timestamp': Date.parse(str(i[2]).split('.')[0]), 
+                                'childType':i[4],
+                                'parent':i[5]
+                            };
+                            current = i[1];
+
+                        }
+                    } else {
+                        if (items[i][1] == null) {
+                            continue;
+                        }
+                        if (items[i][8] == null) {
+                            media.push(items[i][8]);
+                        }
+                    }
+                }
+                res.json({status="OK", items=ret_items});
+            }) .catch (function (err) {
+                console.log("something went wrong at try catch");
+                console.log(err);
+                res.json({status: 'error', error: "Something went wrong at connection"});
+            });
+
+    }
+
+    console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+
 })
 
 
-
+function fix_string_formatting(string, variables) {
+    list = string.split('%s');
+    new_str = list[0];
+    for (var i = 1; i < variables.length - 1; i++) {
+        new_str += (' #' + i + ' ' + list[i]);
+    }
+    return new_str;
+ }
