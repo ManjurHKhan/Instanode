@@ -210,6 +210,58 @@ app.post("/logout", function (req, res) {
     });
 });
 
+
+/** verify **/
+
+app.post("/verify", function(req, res) {
+    console.log("starting verify");
+
+    var data = req.body;
+    if(data == null) {
+        return res.json({status: "error", error: "No data was sent on res.body"});
+    }
+    console.log(data);
+
+    var key = data.key == null ? null : data.key;
+    var email = data.email == null ? null : data.email;
+
+    if(key == null || email == null) {
+        return res.json({status: "error", error: "No data was sent on res.body"});
+    }
+
+    db.one("SELECT username FROM users where email=$1 and validated is False" [email])
+        .then(function (new_data) {
+            if(new_data == null || new_data.length == 0) {
+                return res.json({status: "error", error: "Invalid verify inputs"});
+            }
+            username = new_data[0];
+            db.one("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
+                .then(function (new_data) {
+                    if(new_data == null || new_data.length == 0) {
+                        console.log("invalid key");
+                        return res.json({status: "error", error: "Invalid key given"});
+                    }
+                    return res.json({status: "OK"});
+                    db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
+                        .then(function (err) {
+                            console.log("db update for validating user");
+                        }) .catch(function(err) {
+                            console.log("something went wrong while validating users");
+                            console.log(err);
+                        });
+                }) .catch(function (err) {
+                    console.log("something went wrong while connecting.")
+                    console.log(err);
+                    return res.json({status: "error", error: "connection error"});
+                });
+        }) .catch(function (err) {
+            console.log(err);
+            return res.json({status: "error", error: "connection error"});
+        });
+
+});
+
+
 /** add item start **/
 
 app.post('/additem', function (req, res) {
