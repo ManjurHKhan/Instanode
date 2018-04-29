@@ -12,7 +12,7 @@ const elasticsearch = require('elasticsearch');
 var request = require('request');
 var util = require('util');
 
-const LOAD_BALANCER_IP = "130.245.168.67"
+const LOAD_BALANCER_IP = "130.245.171.38"
 
 /** elastic search set up **/
 const INDEX_NAME = "insta_index"
@@ -94,49 +94,49 @@ app.post('/adduser', function(req, res) {
     }
 
     /** check if the user already exists **/
-    db.one("SELECT * FROM USERS where username=$1 or email=$2);", [username, email])
+    db.any("SELECT * FROM USERS where username=$1 or email=$2;", [username, email])
         .then(function (new_data) {
             if(new_data == null || new_data.length == 0) {
                 console.log("user " + username + " does not exist. returning and adding user");
-                res.json({status: "OK"});
                 
                 var random_num = Math.random()*Date.now() | 0;
                 var salty = crypto.createHash('md5').update(random_num.toString()).digest('hex');
                 var passwd = crypto.createHash('md5').update(password + salty).digest('hex');
                 
-                random_num = (Math.random()*Date.now() | 0).string();
-
+                random_num = (Math.random()*Date.now() | 0).toString();
                 var val_key = crypto.createHash('md5').update(random_num).digest('hex');
-                console.log("INSERT INTO USERS (username,password,email,salt) VALUES ({0},{1},{2},{3})".format(username,passwd,email,salty))
+                console.log(util.format("INSERT INTO USERS (username,password,email,salt) VALUES (%s,%s,%s,%s)", username,passwd,email,salty));
+
+                console.log(LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(random_num)));
 
                 db.none("INSERT INTO USERS (username,password,email,salt) VALUES ($1,$2,$3,$4)", [username,passwd,email,salty])
                     .then(function() {
                         console.log("added new user :D");
+                        res.json({status: "OK"});
+                        db.none("INSERT INTO VALIDATE (username,validkey) VALUES ($1,$2)", [username,val_key])
+                            .then(function() {
+                                console.log("validation key successfully added");
+                            }) .catch(function (err) {
+                                console.log("validation key adding got wrong");
+                                console.log(err);
+                            });
+
+                        // send the email
+                        // TODO figure out what to do with email. I vote for letting the email be handled by storage server
+                        request({
+                            uri: 'http://' + LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(random_num)),
+                            method : "GET",
+                            followRedirect: true
+                        }, function(err) {
+                            if(err){
+                                console.log("err in sending email");
+                                console.log(err);
+                            }
+                        });
                     }) .catch(function (err) {
                         console.log("uh something went wrong when doing add user");
                         console.log(err);
                     });
-
-                db.none("INSERT INTO VALIDATE (username,validkey) VALUES ($1,$2)", [username,val_key])
-                    .then(function() {
-                        console.log("validation key successfully added");
-                    }) .catch(function (err) {
-                        console.log("validation key adding got wrong");
-                        console.log(err);
-                    });
-
-                // send the email
-                // TODO figure out what to do with email. I vote for letting the email be handled by storage server
-                request({
-                    uri: LOAD_BALANCER_IP + '?to={0}&text={1}'.format(encodeURIComponent(email), encodeURIComponent(random_num)),
-                    method : "GET",
-                    followRedirect: true
-                }, function(err) {
-                    if(err){
-                        console.log("err in sending email");
-                        console.log(err);
-                    }
-                });
 
             } else {
                 return res.json({status: "error", error: "User exists"});
