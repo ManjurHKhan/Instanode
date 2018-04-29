@@ -1,10 +1,12 @@
 # Instanode
 
 ## Tested endpoints
+* adduser
+* verify
 * Login
 * Follows
 * Like
-* Additem (need to test without parent)
+* Additem (was it tested with media?)
 * Get item (need to fix date format)
 
 

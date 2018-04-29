@@ -107,7 +107,7 @@ app.post('/adduser', function(req, res) {
                 var val_key = crypto.createHash('md5').update(random_num).digest('hex');
                 console.log(util.format("INSERT INTO USERS (username,password,email,salt) VALUES (%s,%s,%s,%s)", username,passwd,email,salty));
 
-                console.log(LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(random_num)));
+                console.log(LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)));
 
                 db.none("INSERT INTO USERS (username,password,email,salt) VALUES ($1,$2,$3,$4)", [username,passwd,email,salty])
                     .then(function() {
@@ -124,11 +124,12 @@ app.post('/adduser', function(req, res) {
                         // send the email
                         // TODO figure out what to do with email. I vote for letting the email be handled by storage server
                         request({
-                            uri: 'http://' + LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(random_num)),
+                            uri: 'http://' + LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)),
                             method : "GET",
                             followRedirect: true
                         }, function(err) {
                             if(err){
+                                return res.json({status: "error", error: "connection errors"});
                                 console.log("err in sending email");
                                 console.log(err);
                             }
@@ -241,19 +242,21 @@ app.post("/verify", function(req, res) {
         return res.json({status: "error", error: "No data was sent on res.body"});
     }
 
-    db.one("SELECT username FROM users where email=$1 and validated is False" [email])
+    db.one("SELECT username FROM users where email=$1 and validated is False", [email])
         .then(function (new_data) {
             if(new_data == null || new_data.length == 0) {
                 return res.json({status: "error", error: "Invalid verify inputs"});
             }
-            username = new_data[0];
-            db.one("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
+            console.log("inside select username on verify");
+            console.log(new_data);
+            username = new_data.username;
+            db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
                 .then(function (new_data) {
                     if(new_data == null || new_data.length == 0) {
                         console.log("invalid key");
                         return res.json({status: "error", error: "Invalid key given"});
                     }
-                    return res.json({status: "OK"});
+                    res.json({status: "OK"});
                     db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
                         .then(function (err) {
                             console.log("db update for validating user");
