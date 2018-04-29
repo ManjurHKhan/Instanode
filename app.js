@@ -68,7 +68,6 @@ app.use(session({
     resave: true,
     saveUninitialized: true
 }));
-var user_session;
 
 
 
@@ -143,7 +142,7 @@ app.post('/adduser', function(req, res) {
                 return res.json({status: "error", error: "User exists"});
             }
         }) .catch(function (err) {
-            console.log("ERRR :(");
+            console.log("ERRR :(", err);
             return res.json({status: "error", error: "error on db function"});
         });
 
@@ -154,7 +153,7 @@ app.post('/adduser', function(req, res) {
 
 app.post('/login', function (req, res) {
     console.log("doing login");
-    user_session = req.session;
+    var user_session = req.session;
     user_id = user_session.userID;
     console.log(user_id,user_id != null )
     if(user_id == null) {
@@ -179,9 +178,12 @@ app.post('/login', function (req, res) {
                 if(new_data == null) {
                     return res.json({status: 'error', error: 'User does not exists'});
                 }
-                var salt = new_data[0];
-                var secret_pass = new_data[1];
+                console.log("S:DFJDSLKJ",new_data);
+                var salt = new_data["salt"];
+                var secret_pass = new_data["password"];
                 var passwd = crypto.createHash('md5').update(password + salt).digest('hex');
+                console.log(passwd);
+                console.log(secret_pass)
                 if(passwd == secret_pass) {
                     // set session
                     console.log("hello????")
@@ -279,7 +281,7 @@ app.post('/additem', function (req, res) {
     console.log("for a post request on /additem");
 
     /** checking if user is logged in using sessions **/
-    user_session = req.session;
+    var user_session = req.session;
     if(user_session == null) {
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -289,8 +291,8 @@ app.post('/additem', function (req, res) {
     }
     console.log(data);
 
-    var user_id = user_session.userID;
-    if(user_id == null) {
+    var user_cookie = user_session.userID;
+    if(user_cookie == null) {
         console.log("cookies : ", req.cookies);
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -324,33 +326,35 @@ app.post('/additem', function (req, res) {
         if (parent != null) {
             //query = "INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);"
 
-            db.task("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);")
-            .then(function () {
+            db.task(function(){
+                db.none("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);",[user_cookie, postid, content, childType, parent])
+                .then(function (b) {
                 //   res.status(200)
                 //     .json({
                 //       status: 'success',
                 //       message: 'yeee'
                 //     });
                 // })
-                console.log("ADDED NEW ITEM TO WITH PARENT ELE");
-
-
-
-                db.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1);", [parent])
-                .then(function () {
                     console.log("ADDED NEW ITEM TO WITH PARENT ELE");
-                }) .catch(function (err) {
-                    console.log("ERRR :(");
 
-                    //return next(err);
-                });
 
-            })
+
+                    db.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1;", [parent])
+                    .then(function () {
+                        console.log("ADDED NEW ITEM TO WITH PARENT ELE");
+                    }).catch(function (err) {
+                        console.log("ERRR :(", err);
+
+                        //return next(err);
+                    });
+
+             })
             .catch(function (err) {
                 console.log("ERRR :(",err);
 
                 //return next(err);
             });
+        });
 
         } else {
 
@@ -416,23 +420,24 @@ app.get("/item/:id", function(req, res) {
                 return res.json({status: "error", error: "item not found"});
             }
             var media = [];
-            for (var i = 0; i < new_data.length; i++) {
-                if(new_data[i][8] != null) {
-                    media.push(new_data[i][8]);
+            // for (var i = 0; i < new_data.length; i++) {
+                if(new_data[0]["media"] != null) {
+                    media.push(new_data[0]["media"]);
                 }
-            }
-            var i = new_data[0];
-            item = {'id':i[1], 
-                    'username':i[0], 
+            // }
+            console.log(new_data);
+            new_data = new_data[0];
+            item = {'id':new_data['id'], 
+                    'username':new_data['username'], 
                     'property':
                         {
-                            'likes':i[7]
+                            'likes':new_data['likes']
                         }, 
-                    'retweeted':i[6],
-                    'content':i[3],
-                    'timestamp': Date.parse(str(i[2]).split('.')[0]), 
-                    'childType':i[4],
-                    'parent':i[5], 
+                    'retweeted': new_data['retweet_cnt'],
+                    'content': new_data['content'],
+                    'timestamp': new_data['timestamp'] == null?  Date.parse(Date.now()) : Date.parse(new_data['timestamp'].toString().split('.')[0]), 
+                    'childType':new_data['child_type'],
+                    'parent':new_data['parent_id'], 
                     'media':media
                 }
 
@@ -831,7 +836,7 @@ app.post("/follow", function(req, res) {
         return res.json({status: "error", error: "No data was sent for follow endpoint"});
 
     }
-    var user_following = data.user == null ? null:  data.username.trim();
+    var user_following = data.username == null ? null:  data.username.trim();
     if (user_following == null){
         return res.json ({status: "error", error: "no username provided - who are you trying to following"});
     }
@@ -840,15 +845,17 @@ app.post("/follow", function(req, res) {
 
         db.none ("INSERT INTO followers (username, follows) VALUES($1 , $2);",[username,user_following ])
             .then(function (new_data) {
-                console.log("inserted following relation fine")
-                if(new_data == null || new_data.length == 0) {
-                    return res.json({status: "error", error: "item not found"});
-                }
+                console.log("inserted following relation fine", new_data)
+
+                return res.json({status: "OK", msg: "Followed successfully"});
+                // if(new_data == null || new_data.length == 0) {
+                //     return res.json({status: "OK", msg: "Followed successfully"});
+                // }
             })
             .catch(function (error) {
                 console.log("error with following")
-                if(error == null || new_data.length == 0) {
-                    return res.json({status: "error", error: "item not found"});
+                if(error == null) {
+                    return res.json({status: "error", error: "following not inserted"});
                 }
             });
     } else{
