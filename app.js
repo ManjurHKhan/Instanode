@@ -63,15 +63,18 @@ var storage = multer.diskStorage({
 var app = express()
 app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(session({secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq'}));
-var user_session;
+app.use(session({
+    secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq',
+    resave: true,
+    saveUninitialized: true
+}));
 
 
 
 
 /** sign up start **/
 
-app.post('/adduser', function(req, res)) {
+app.post('/adduser', function(req, res) {
     console.log("for a post reuqest on /adduser");
 
     /** checking if data exists **/
@@ -139,20 +142,21 @@ app.post('/adduser', function(req, res)) {
                 return res.json({status: "error", error: "User exists"});
             }
         }) .catch(function (err) {
-            console.log("ERRR :(");
+            console.log("ERRR :(", err);
             return res.json({status: "error", error: "error on db function"});
         });
 
-}
+});
 
 
 /** login starts **/
 
 app.post('/login', function (req, res) {
     console.log("doing login");
-    user_session = req.session;
+    var user_session = req.session;
     user_id = user_session.userID;
-    if(user_id != null) {
+    console.log(user_id,user_id != null )
+    if(user_id == null) {
         // db.one("SELECT username FROM USERS where username=$1 and validated is True", [user_id])
         //     .then(function (new_data) {
         //         if(new_data == null || new_data.length == 0) {
@@ -168,33 +172,40 @@ app.post('/login', function (req, res) {
         if (username == null || password == null) {
             return res.json({status: "error", error: "not valid data"});
         }
-        db.one("SELECT salt, password FROM USERS where username=%s and validated is True")
+        // validate loging
+        db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
-                    res.json({status: 'error', error: 'User does not exists'});
+                    return res.json({status: 'error', error: 'User does not exists'});
                 }
-                var salt = new_data[0];
-                var secret_pass = new_data[1];
+                console.log("S:DFJDSLKJ",new_data);
+                var salt = new_data["salt"];
+                var secret_pass = new_data["password"];
                 var passwd = crypto.createHash('md5').update(password + salt).digest('hex');
+                console.log(passwd);
+                console.log(secret_pass)
                 if(passwd == secret_pass) {
                     // set session
+                    console.log("hello????")
                     user_session.userID = username;
-                    res.json({status: 'OK'});
+                    return res.json({status: 'OK'});
                 } else {
-                    res.json({status: 'error', error: 'Password does not match'});
+                    return res.json({status: 'error', error: 'Password does not match'});
                 }
             }) .catch(function (err) {
                 console.log("Error happened while doing login");
                 console.log(err);
-                res.json({status: 'error', error: 'Connection error happened'});
+                return res.json({status: 'error', error: 'Connection error happened'});
             });
 
             // }) .catch (function (err) {
             //     res.json({status: 'error', error: 'Connection error happened'});
             // });
+    }else{
+        // assuming that if userid is set up then the user is correct
+        console.log("userid == false")
+        return res.json({status: 'OK'});
     }
-    // assuming that if userid is set up then the user is correct
-    return res.json({status: 'OK'});
 });
 
 
@@ -270,7 +281,7 @@ app.post('/additem', function (req, res) {
     console.log("for a post request on /additem");
 
     /** checking if user is logged in using sessions **/
-    user_session = req.session;
+    var user_session = req.session;
     if(user_session == null) {
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -280,8 +291,8 @@ app.post('/additem', function (req, res) {
     }
     console.log(data);
 
-    var user_id = user_session.userID;
-    if(user_id == null) {
+    var user_cookie = user_session.userID;
+    if(user_cookie == null) {
         console.log("cookies : ", req.cookies);
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -315,33 +326,35 @@ app.post('/additem', function (req, res) {
         if (parent != null) {
             //query = "INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);"
 
-            db.task("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);")
-            .then(function () {
+            db.task(function(){
+                db.none("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);",[user_cookie, postid, content, childType, parent])
+                .then(function (b) {
                 //   res.status(200)
                 //     .json({
                 //       status: 'success',
                 //       message: 'yeee'
                 //     });
                 // })
-                console.log("ADDED NEW ITEM TO WITH PARENT ELE");
-
-
-
-                db.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1);", [parent])
-                .then(function () {
                     console.log("ADDED NEW ITEM TO WITH PARENT ELE");
-                }) .catch(function (err) {
-                    console.log("ERRR :(");
 
-                    //return next(err);
-                });
 
-            })
+
+                    db.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1;", [parent])
+                    .then(function () {
+                        console.log("ADDED NEW ITEM TO WITH PARENT ELE");
+                    }).catch(function (err) {
+                        console.log("ERRR :(", err);
+
+                        //return next(err);
+                    });
+
+             })
             .catch(function (err) {
                 console.log("ERRR :(",err);
 
                 //return next(err);
             });
+        });
 
         } else {
 
@@ -363,6 +376,7 @@ app.post('/additem', function (req, res) {
             db.none("INSERT INTO user_media(username, postid, mediaid) VALUES ($1, $2, $3);",[user_cookie, postid, media[i]])
                 .then(function () {
                 // console.log("media done");
+
                 }).catch(function (err) {
                     console.log("ERRR :( bno pare 0 media",err);
                 //return next(err);
@@ -406,27 +420,28 @@ app.get("/item/:id", function(req, res) {
                 return res.json({status: "error", error: "item not found"});
             }
             var media = [];
-            for (var i = 0; i < new_data.length; i++) {
-                if(new_data[i][8] != null) {
-                    media.push(new_data[i][8]);
+            // for (var i = 0; i < new_data.length; i++) {
+                if(new_data[0]["media"] != null) {
+                    media.push(new_data[0]["media"]);
                 }
-            }
-            var i = new_data[0];
-            item = {'id':i[1], 
-                    'username':i[0], 
+            // }
+            console.log(new_data);
+            new_data = new_data[0];
+            item = {'id':new_data['id'], 
+                    'username':new_data['username'], 
                     'property':
                         {
-                            'likes':i[7]
+                            'likes':new_data['likes']
                         }, 
-                    'retweeted':i[6],
-                    'content':i[3],
-                    'timestamp': Date.parse(str(i[2]).split('.')[0]), 
-                    'childType':i[4],
-                    'parent':i[5], 
+                    'retweeted': new_data['retweet_cnt'],
+                    'content': new_data['content'],
+                    'timestamp': new_data['timestamp'] == null?  Date.parse(Date.now()) : Date.parse(new_data['timestamp'].toString().split('.')[0]), 
+                    'childType':new_data['child_type'],
+                    'parent':new_data['parent_id'], 
                     'media':media
                 }
 
-            return res.json({status="OK", item = item});
+            return res.json({status:"OK", item : item});
 
         }) .catch (function (err) {
             console.log("error happeend while fetching item");
@@ -458,10 +473,10 @@ app.post("/search", function(req, res) {
         q_data = [];
 
         dic = {
-            "interest": {  "time" : {"order" : "asc"}},
-            "rank": {  "sume(likes+ retweets) " : {"order" : "asc"}},
-            "parent" : {"match"},
-            "hasMedia" : {"true"},
+            "interest": {  "time" : {"order" : "asc"} },
+            "rank": {  "sume(likes+ retweets) " : {"order" : "asc"} },
+            "parent" :  "match" ,
+            "hasMedia" : "true",
         };
 
         var limit = 25;
@@ -569,7 +584,7 @@ app.post("/search", function(req, res) {
             } else if (data.rank = "interest") {
                 rank_order = "sum DESC";
             } else {
-                res.json({status="error", error="invalid Rank type passed in"});
+                res.json({status:"error", error:"invalid Rank type passed in"});
             }
         } else {
             rank_order = "sum DESC";
@@ -611,7 +626,7 @@ app.post("/search", function(req, res) {
                 }
                 ret_items = [];
                 i = items[0];
-                while (items.length > 0 and i[1] == null) {
+                while (items.length > 0 && i[1] == null) {
                     items.slice(1);
                     i = items[0];
                 }
@@ -663,7 +678,7 @@ app.post("/search", function(req, res) {
                         }
                     }
                 }
-                res.json({status="OK", items=ret_items});
+                res.json({status:"OK", items:ret_items});
             }) .catch (function (err) {
                 console.log("something went wrong at try catch");
                 console.log(err);
@@ -677,6 +692,248 @@ app.post("/search", function(req, res) {
 })
 
 
+//===============================================================//
+
+
+app.get("/user/<username>", function(req, res) {
+    var user_session = req.session;
+    var username = user_session.userID;
+
+    if(username == null) {
+        return res.json({status: "error", error: "No user logged in... boo"});
+    }
+    ret_user = {'email':None, followers:0, following:0}
+  
+    db.task ("SELECT email FROM users where username = $1",[username])
+        .then(function (new_data) {
+            //console.log("selecting followers of username relation fine")
+            if (new_data == null || new_data.length == 0){
+                return res.json ({status: "error", error: "User info not found or missing - email"});
+            }else{
+                ret_user ["email"] = new_data[0];
+                db.any("SELECT COUNT(follows) FROM users where follows = $1", [username])
+                    .then(function (following_data){
+                        if (following_data == null || following_data.length == 0){
+                            return res.json ({status: "error", error: "User info not found or missing - email"});
+                        }
+                        ret_user[following] = following_data[0]
+
+                        db.any("SELECT COUNT(follows) FROM users where username = $1", [username])
+                            .then(function (followers_data) {
+                                if (followers_data == null || followers_data.length == 0){
+                                    return res.json ({status: "error", error: "User info not found or missing - follower count"});
+                                }
+                                ret_user[followers] = followers_data[0];
+                            })
+                            .catch(function (followers_err) {
+                                console.log("something went wrong with finding follower counts", followers_err)
+                            })
+                    }
+                    .catch(function(errror){
+                        console.log("something went wrong finding following counts",errror);
+                    }))
+
+            }
+            
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting followers of user failed"});
+            }
+        });
+});
+
+
+
+/** Get all users a user is being followed by **/
+app.get("/user/<username>/following", function(req, res) {
+    var username = req.param.username;
+    if(username == null) {
+        return res.json({status: "error", error: "No user specified - who we are looking for?"});
+    }
+
+    var limit = 50;
+    var data = req.body;
+    if (data != null){
+        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+    }
+    var user_following = data.user == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+
+    db.any ("SELECT username FROM followers where follows=$1 LIMIT $2;",[username,limit])
+        .then(function (new_data) {
+            //console.log("selecting followers of username relation fine")
+            followers = []
+            for (var x = 0; x < new_data.length; x++){
+                for (var row = 0; row < new_data[x].length; row++){
+                    followers.push(new_data[row][x]);
+                }
+            }
+            return res.json({status: "OK", users: followers});
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting followers of user failed"});
+            }
+        });
+});
+
+
+/** Get all users a user is following **/
+app.get("/user/<username>/following", function(req, res) {
+    var username = req.param.username;
+    if(username == null) {
+        return res.json({status: "error", error: "No user specified - who we are looking for?"});
+    }
+
+    var limit = 50;
+    var data = req.body;
+    if (data != null){
+        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+    }
+    var user_following = data.user == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+
+
+    db.any ("SELECT follows FROM followers where username=$1 LIMIT $2;",[username,limit])
+        .then(function (new_data) {
+            //console.log("selecting follows ;) relation fine")
+            followings = []
+            for (var x = 0; x < new_data.length; x++){
+                for (var row = 0; row < new_data[x].length; row++){
+                    followings.push(new_data[row][x]);
+                }
+            }
+            return res.json({status: "OK", users: followings});
+        })
+        .catch(function (error) {
+            console.log("error with following", error)
+            if(error == null || new_data.length == 0) {
+                return res.json({status: "error", error: "getting following failed not found"});
+            }
+    });
+});
+
+
+/** Follow a user **/
+app.post("/follow", function(req, res) {
+
+    var user_session =  req.session;
+    username = user_session.userID;
+    console.log(user_session);
+    if(username == null) {
+        return res.json({status: "error", error: "User is not logged in while trying to Follow"});
+    }
+
+    var data = req.body;
+    if (data == null){
+        return res.json({status: "error", error: "No data was sent for follow endpoint"});
+
+    }
+    var user_following = data.username == null ? null:  data.username.trim();
+    if (user_following == null){
+        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
+    }
+    var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
+    if (follow) {
+
+        db.none ("INSERT INTO followers (username, follows) VALUES($1 , $2);",[username,user_following ])
+            .then(function (new_data) {
+                console.log("inserted following relation fine", new_data)
+
+                return res.json({status: "OK", msg: "Followed successfully"});
+                // if(new_data == null || new_data.length == 0) {
+                //     return res.json({status: "OK", msg: "Followed successfully"});
+                // }
+            })
+            .catch(function (error) {
+                console.log("error with following")
+                if(error == null) {
+                    return res.json({status: "error", error: "following not inserted"});
+                }
+            });
+    } else{
+
+        db.none ("DELETE FROM followers WHERE username=$1 and follows=$2;", [username,user_following ])
+            .then(function (new_data) {
+                console.log("deleted following relation fine")
+            })
+            .catch(function (error) {
+                console.log("error with unfollowing")
+               
+            });
+    }
+});
+
+/** like an id with the logged in user **/
+
+app.post("/item/:id/like", function(req, res) {
+
+    var id = req.param('id');
+
+    console.log("liking post with id" + id)
+
+    var user_session =  req.session;
+    username = user_session.userID;
+
+    if(username == null) {
+        return res.json({status: "error", error: "User is not logged in while trying to like"});
+    }
+
+    var data = req.body;
+    if (data == null) {
+        return res.json({status: "error", error: "No data was sent for like endpoint"});
+    }
+    var like_data = data.like;
+    var like = true;
+    console.log(like_data);
+    like = data.like == null ? true : data.like.trim().toLowerCase() == "true";
+    query = ""
+    if (like) {
+        db.task("INSERT INTO likes (username, postid) VALUES (%s , %s);")
+            .then (function (){
+
+                db.none("UPDATE posts set numliked = numliked+1 where postid=$1);", [id])
+                    .then(function () {
+                        return res.json({status:"OK",msg:"Liked and incremented like count in post"})
+                    }) .catch(function (err) {
+                        console.log("ERRR :( with updating like count", err);
+                    });
+                }) 
+        .catch (function(err){
+                console.log("error happened while inserting to like table", err);
+        });
+    }
+    else{
+        db.task("DELETE FROM likes where username=%s and postid=$1 RETURNING *")
+            .then (function (){
+
+                db.none("UPDATE posts set numliked = numliked-1 where postid=$1);", [id])
+                    .then(function () {
+                        return res.json({status:"OK",msg:"Unliked and decremented like count in post"})
+                    }) .catch(function (err) {
+                        console.log("Error happened while unliking to updating like table",err);
+                });
+
+            }) .catch (function(err){
+                console.log("error happened while unliking to updating like table",err);
+            });
+
+    }
+
+});
+
+
+
+//============== HELPER FUNCTIONS =============================================//
+
+
 function fix_string_formatting(string, variables) {
     list = string.split('%s');
     new_str = list[0];
@@ -685,3 +942,17 @@ function fix_string_formatting(string, variables) {
     }
     return new_str;
  }
+
+
+//============== SETTING UP NON-API ENDPOINTS FOR SANITY=============================================//
+
+app.get('/', function (req, res) {
+    res.send('Hello File upload is only a click away. jk');
+})
+
+
+app.listen(8000, function () {
+    console.log('API Application started on port 8000')
+})
+
+
