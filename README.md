@@ -7,7 +7,7 @@
 * Follows
 * Like
 * Additem (was it tested with media?)
-* Get item (need to fix date format)
+* Get item
 
 
 

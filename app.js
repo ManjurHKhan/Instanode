@@ -429,6 +429,10 @@ app.get("/item/:id", function(req, res) {
                 }
             // }
             console.log(new_data);
+            console.log("++++++++++")
+            console.log(new_data[0]['date']);
+            console.log(Date.parse(new_data[0]['date'].toString()));
+            console.log("++++++++++++===");
             new_data = new_data[0];
             item = {'id':new_data['id'], 
                     'username':new_data['username'], 
@@ -438,7 +442,7 @@ app.get("/item/:id", function(req, res) {
                         }, 
                     'retweeted': new_data['retweet_cnt'],
                     'content': new_data['content'],
-                    'timestamp': new_data['timestamp'] == null?  Date.parse(Date.now()) : Date.parse(new_data['timestamp'].toString().split('.')[0]), 
+                    'timestamp': new_data['date'] == null?  Date.now() : Date.parse(new_data['date'].toString()), 
                     'childType':new_data['child_type'],
                     'parent':new_data['parent_id'], 
                     'media':media
@@ -641,7 +645,7 @@ app.post("/search", function(req, res) {
                         }, 
                     'retweeted':i[6],
                     'content':i[3],
-                    'timestamp': Date.parse(str(i[2]).split('.')[0]), 
+                    'timestamp': Date.parse(str(i[2])), 
                     'childType':i[4],
                     'parent':i[5]
                 };
@@ -665,7 +669,7 @@ app.post("/search", function(req, res) {
                                     }, 
                                 'retweeted':i[6],
                                 'content':i[3],
-                                'timestamp': Date.parse(str(i[2]).split('.')[0]), 
+                                'timestamp': Date.parse(str(i[2])), 
                                 'childType':i[4],
                                 'parent':i[5]
                             };
