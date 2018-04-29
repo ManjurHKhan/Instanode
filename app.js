@@ -877,7 +877,6 @@ app.post("/search", function(req, res) {
 
 app.get("/user/:username", function(req, res) {
     var username = req.params.username;
-    console.log("hekki")
     if(username == null) {
         return res.json({status: "error", error: "No username specified... boo"});
     }
@@ -931,77 +930,69 @@ app.get("/user/:username", function(req, res) {
 
 
 /** Get all users a user is being followed by **/
-app.get("/user/:username/following", function(req, res) {
-    var username = req.param.username;
+app.get("/user/:username/followers", function(req, res) {
+    var username = req.params.username;
     if(username == null) {
         return res.json({status: "error", error: "No user specified - who we are looking for?"});
     }
 
     var limit = 50;
-    var data = req.body;
+    var data = req.query;
     if (data != null){
-        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+        if (data.limit != null){
+            datalimit = parseInt(data.limit);
+            limit = datalimit > 200  || datalimit < 50 ? 50 : datalimit; 
+        }
     }
-    var user_following = data.user == null ? null:  data.username.trim();
-    if (user_following == null){
-        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
-    }
+    console.log(data, data.limit,limit);
 
     db.any ("SELECT username FROM followers where follows=$1 LIMIT $2;",[username,limit])
         .then(function (new_data) {
             //console.log("selecting followers of username relation fine")
+            console.log(new_data);
             followers = []
             for (var x = 0; x < new_data.length; x++){
-                for (var row = 0; row < new_data[x].length; row++){
-                    followers.push(new_data[row][x]);
-                }
+                followers.push(new_data[x]["username"]);
             }
             return res.json({status: "OK", users: followers});
         })
         .catch(function (error) {
             console.log("error with following", error)
-            if(error == null || new_data.length == 0) {
-                return res.json({status: "error", error: "getting followers of user failed"});
-            }
+            return res.json({status: "error", error: "getting followers of user failed"});
         });
 });
 
 
 /** Get all users a user is following **/
 app.get("/user/:username/following", function(req, res) {
-    var username = req.param.username;
+    var username = req.params.username;
     if(username == null) {
         return res.json({status: "error", error: "No user specified - who we are looking for?"});
     }
 
     var limit = 50;
-    var data = req.body;
+    var data = req.query;
     if (data != null){
-        limit = data.limit == null || data.limit > 200  || data.limit > 50 ? 50 : data.limit; 
+        if (data.limit != null){
+            datalimit = parseInt(data.limit);
+            limit = datalimit > 200  || datalimit < 50 ? 50 : datalimit; 
+        }
     }
-    var user_following = data.user == null ? null:  data.username.trim();
-    if (user_following == null){
-        return res.json ({status: "error", error: "no username provided - who are you trying to following"});
-    }
-
 
     db.any ("SELECT follows FROM followers where username=$1 LIMIT $2;",[username,limit])
         .then(function (new_data) {
-            //console.log("selecting follows ;) relation fine")
-            followings = []
+            //console.log("selecting followers of username relation fine")
+            console.log(new_data);
+            following = []
             for (var x = 0; x < new_data.length; x++){
-                for (var row = 0; row < new_data[x].length; row++){
-                    followings.push(new_data[row][x]);
-                }
+                following.push(new_data[x]["follows"]);
             }
-            return res.json({status: "OK", users: followings});
+            return res.json({status: "OK", users: following});
         })
         .catch(function (error) {
             console.log("error with following", error)
-            if(error == null || new_data.length == 0) {
-                return res.json({status: "error", error: "getting following failed not found"});
-            }
-    });
+            return res.json({status: "error", error: "getting users' following of user failed"});
+        });
 });
 
 
@@ -1047,9 +1038,13 @@ app.post("/follow", function(req, res) {
         db.none ("DELETE FROM followers WHERE username=$1 and follows=$2;", [username,user_following ])
             .then(function (new_data) {
                 console.log("deleted following relation fine")
+                return res.json({status: "OK", msg: "Unfollowed successfully"});
+
             })
             .catch(function (error) {
                 console.log("error with unfollowing")
+                return res.json({status: "error", msg: "Error with unfollowing successfully"});
+
                
             });
     }
