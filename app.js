@@ -875,59 +875,63 @@ app.post("/search", function(req, res) {
 //===============================================================//
 
 
-app.get("/user/<username>", function(req, res) {
-    var user_session = req.session;
-    var username = user_session.userID;
-
+app.get("/user/:username", function(req, res) {
+    var username = req.params.username;
+    console.log("hekki")
     if(username == null) {
-        return res.json({status: "error", error: "No user logged in... boo"});
+        return res.json({status: "error", error: "No username specified... boo"});
     }
-    ret_user = {'email':None, followers:0, following:0}
+    ret_user = {'email':null, "followers":0, "following":0}
   
-    db.task ("SELECT email FROM users where username = $1",[username])
+    db.task (function(){
+        console.log("LSKDJFLKADJS")
+        db.one("SELECT email FROM users where username = $1",[username])
         .then(function (new_data) {
             //console.log("selecting followers of username relation fine")
             if (new_data == null || new_data.length == 0){
                 return res.json ({status: "error", error: "User info not found or missing - email"});
             }else{
-                ret_user ["email"] = new_data[0];
-                db.any("SELECT COUNT(follows) FROM users where follows = $1", [username])
+                ret_user ["email"] = new_data["email"];
+                db.one("SELECT COUNT(follows) FROM followers where follows = $1", [username])
                     .then(function (following_data){
                         if (following_data == null || following_data.length == 0){
                             return res.json ({status: "error", error: "User info not found or missing - email"});
                         }
-                        ret_user[following] = following_data[0]
+                        ret_user["following"] = following_data["count"]
 
-                        db.any("SELECT COUNT(follows) FROM users where username = $1", [username])
+                        db.one("SELECT COUNT(follows) FROM followers where username = $1", [username])
                             .then(function (followers_data) {
                                 if (followers_data == null || followers_data.length == 0){
                                     return res.json ({status: "error", error: "User info not found or missing - follower count"});
                                 }
-                                ret_user[followers] = followers_data[0];
+                                console.log(followers_data)
+                                ret_user["followers"] = followers_data["count"];
+                                console.log(ret_user)
+                                return res.json ({status: "error", user: ret_user});
+
                             })
                             .catch(function (followers_err) {
                                 console.log("something went wrong with finding follower counts", followers_err)
                             })
-                    }
+                    })
                     .catch(function(errror){
                         console.log("something went wrong finding following counts",errror);
-                    }))
+                    })
 
             }
             
         })
         .catch(function (error) {
             console.log("error with following", error)
-            if(error == null || new_data.length == 0) {
-                return res.json({status: "error", error: "getting followers of user failed"});
-            }
+            return res.json({status: "error", error: "getting followers of user failed"});
         });
+    });
 });
 
 
 
 /** Get all users a user is being followed by **/
-app.get("/user/<username>/following", function(req, res) {
+app.get("/user/:username/following", function(req, res) {
     var username = req.param.username;
     if(username == null) {
         return res.json({status: "error", error: "No user specified - who we are looking for?"});
@@ -964,7 +968,7 @@ app.get("/user/<username>/following", function(req, res) {
 
 
 /** Get all users a user is following **/
-app.get("/user/<username>/following", function(req, res) {
+app.get("/user/:username/following", function(req, res) {
     var username = req.param.username;
     if(username == null) {
         return res.json({status: "error", error: "No user specified - who we are looking for?"});
