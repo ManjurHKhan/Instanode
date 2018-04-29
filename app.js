@@ -494,7 +494,7 @@ app.post("/search", function(req, res) {
         if (data.timestamp != null) {
             timestamp = date.timestamp;
         }
-        timestamp = new Date(timestamp);
+        timestamp = new Date(timestamp * 1000);
         timestamp = timestamp.toISOString();
         console.log("timestamp = " + timestamp);
 
@@ -584,7 +584,7 @@ app.post("/search", function(req, res) {
             });
 
         }
-        var rank_order = "";
+        var rank_order = "sum DESC";
         if (data.rank != null) {
             if(data.rank == "time") {
                 rank_order = "posts.date DESC";
@@ -593,8 +593,6 @@ app.post("/search", function(req, res) {
             } else {
                 res.json({status:"error", error:"invalid Rank type passed in"});
             }
-        } else {
-            rank_order = "sum DESC";
         }
 
         if (data.parent != null) {
@@ -621,67 +619,88 @@ app.post("/search", function(req, res) {
         console.log("Q_DATA IS ");
         console.log(q_data);
 
-        query = util.format(query , (miniquery + joinquery + where_query+ order_query));
+        query = util.format(query , miniquery) + joinquery + where_query + order_query;
         console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
         new_query = fix_string_formatting(query, q_data);
         console.log("new_query is ============= ", new_query);
 
-        db.any(query, q_data)
+        db.any(new_query, q_data)
             .then(function (new_data) {
                 if (new_data.length == 0) {
                     return res.json({status: "OK", items: []});
                 }
+                console.log(new_data);
+                var items = new_data;
                 ret_items = [];
                 i = items[0];
-                while (items.length > 0 && i[1] == null) {
-                    items.slice(1);
-                    i = items[0];
+                console.log(items);
+                for(var x = 0; x < items.length && i[x] == null; x++) {
+                // while (items.length > 0 && i[1] == null) {
+                    // items.slice(1);
+                    i = items[x];
+                    console.log("i am in this loopyyy");
                 }
-                d = {'id':i[1], 
-                    'username':i[0], 
+                console.log('i is ===>>> ');
+                console.log(i);
+                // console.log(i.date);
+                // console.log(i[2]);
+                d = {'id':i.postid, 
+                    'username':i.username, 
                     'property':
                         {
-                            'likes':i[7]
+                            'likes':i.numliked
                         }, 
-                    'retweeted':i[6],
-                    'content':i[3],
-                    'timestamp': Date.parse(str(i[2])), 
-                    'childType':i[4],
-                    'parent':i[5]
+                    'retweeted':i.retweet_cnt,
+                    'content':i.content,
+                    'timestamp': Date.parse(i.date.toString()), 
+                    'childType':i.child_type,
+                    'parent':i.parent_id
                 };
-
-                current = d['id'];
+                console.log(items);
+                current = d.id;
+                console.log(d);
+                console.log(current);
                 media = [];
 
-                for(var i = 0; i < items.length; i++) {
-                    if (items[i] == null || items[i] != current) {
+                for(var x = 0; x < items.length; x++) {
+                    console.log("i am here now in this forloop");
+                    if (items[x] == null || items[x] != current) {
+                        console.log("meaw asdad");
                         d['meida'] = media;
                         ret_items.push(d);
-                    }
-                    if (items[i] != null) {
-                        media = [];
-                        if (i[8] != null) {
-                            d = {'id':i[1], 
-                                'username':i[0], 
+
+                        if (items[x] != null) {
+                            console.log("meawe");
+                            i = items[x];
+                            media = [];
+                            if (i.mediaid != null) {
+                                // chnging media
+                                media.push(i.mediaid);
+                            }
+                            d = {'id':i.postid, 
+                                'username':i.username, 
                                 'property':
                                     {
-                                        'likes':i[7]
+                                        'likes':i.numliked
                                     }, 
-                                'retweeted':i[6],
-                                'content':i[3],
-                                'timestamp': Date.parse(str(i[2])), 
-                                'childType':i[4],
-                                'parent':i[5]
+                                'retweeted':i.retweet_cnt,
+                                'content':i.content,
+                                'timestamp': Date.parse(i.date.toString()), 
+                                'childType':i.child_type,
+                                'parent':i.parent_id
                             };
-                            current = i[1];
+                            console.log("\n\nnew d\n\n");
+                            console.log(d);
+                            current = i.postid;
 
                         }
+                        
                     } else {
-                        if (items[i][1] == null) {
+                        if (items[x][1] == null) {
                             continue;
                         }
-                        if (items[i][8] == null) {
-                            media.push(items[i][8]);
+                        if (items[x][8] == null) {
+                            media.push(items[x][8]);
                         }
                     }
                 }
@@ -942,11 +961,15 @@ app.post("/item/:id/like", function(req, res) {
 
 
 function fix_string_formatting(string, variables) {
+    console.log("inside fix_string");
     list = string.split('%s');
+    console.log(list);
     new_str = list[0];
-    for (var i = 1; i < variables.length - 1; i++) {
-        new_str += (' #' + i + ' ' + list[i]);
+    for (var i = 1; i < list.length; i++) {
+        new_str += (' $' + i + ' ' + list[i]);
+        console.log('\n'+i+'\n' + new_str + '\n');
     }
+    
     return new_str;
  }
 
