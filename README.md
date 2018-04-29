@@ -8,6 +8,7 @@
 * Like
 * Additem (was it tested with media?)
 * Get item
+* search
 
 
 

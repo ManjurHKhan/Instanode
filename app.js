@@ -324,6 +324,30 @@ app.post('/additem', function (req, res) {
     var random_num = Math.random()*time | 0;
     var postid = crypto.createHash('md5').update(time.toString() + user_cookie + random_num.toString()).digest('hex');
     
+
+    e_client.index({
+        index: INDEX_NAME,
+        type: DOC_TYPE,
+        id:postid,
+        body: {
+            id:postid,
+            content:content,
+            childType:childType,
+            parent:parent,
+            username:user_cookie
+        }
+    }, function (err, res) {
+        if (err) {
+            console.log("inserting went wrong");
+            console.log("hello");
+            console.log(err);
+        }else{
+            console.log("INSERTED YEEEEEE");
+        }
+       // e_client.close();
+         // e_client.indices.close({index: INDEX_NAME})
+    });
+
     try {
         res.json({status: "OK", id: postid});
         if (parent != null) {
@@ -391,8 +415,7 @@ app.post('/additem', function (req, res) {
 
     } catch (e) {
         // do logging
-        console.log(e.stack);
-        logger.debug(e.stack);
+        console.log(e);
         return;
         // return res.send(JSON.stringify({"status": "error", "error": "DB connection problem."}));
     }
@@ -581,139 +604,270 @@ app.post("/search", function(req, res) {
                     miniquery += " AND posts.content LIKE %s ";
                     q_data.push("%" + data.q + "%");
                 }
-            });
-
-        }
-        var rank_order = "sum DESC";
-        if (data.rank != null) {
-            if(data.rank == "time") {
-                rank_order = "posts.date DESC";
-            } else if (data.rank = "interest") {
-                rank_order = "sum DESC";
-            } else {
-                res.json({status:"error", error:"invalid Rank type passed in"});
-            }
-        }
-
-        if (data.parent != null) {
-            var parent = data.parent;
-            miniquery += "AND parent_id = %s ";
-            q_data.push(parent);
-        }
-        if (data.replies != null) {
-            if (data.replies == false) {
-                miniquery += "AND (child_type != %s  OR child_type is NULL) ";
-                q_data.push("reply");
-            }
-        }
-
-        if(data.following != null) {
-            miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
-            q_data.push(user_cookie);
-        }
-
-        order_query = "ORDER BY " + rank_order  + ", posts.postid";
-        miniquery += order_query;
-        miniquery += " LIMIT %s";
-        q_data.push(limit)
-        console.log("Q_DATA IS ");
-        console.log(q_data);
-
-        query = util.format(query , miniquery) + joinquery + where_query + order_query;
-        console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
-        new_query = fix_string_formatting(query, q_data);
-        console.log("new_query is ============= ", new_query);
-
-        db.any(new_query, q_data)
-            .then(function (new_data) {
-                if (new_data.length == 0) {
-                    return res.json({status: "OK", items: []});
-                }
-                console.log(new_data);
-                var items = new_data;
-                ret_items = [];
-                i = items[0];
-                console.log(items);
-                for(var x = 0; x < items.length && i[x] == null; x++) {
-                // while (items.length > 0 && i[1] == null) {
-                    // items.slice(1);
-                    i = items[x];
-                    console.log("i am in this loopyyy");
-                }
-                console.log('i is ===>>> ');
-                console.log(i);
-                // console.log(i.date);
-                // console.log(i[2]);
-                d = {'id':i.postid, 
-                    'username':i.username, 
-                    'property':
-                        {
-                            'likes':i.numliked
-                        }, 
-                    'retweeted':i.retweet_cnt,
-                    'content':i.content,
-                    'timestamp': Date.parse(i.date.toString()), 
-                    'childType':i.child_type,
-                    'parent':i.parent_id
-                };
-                console.log(items);
-                current = d.id;
-                console.log(d);
-                console.log(current);
-                media = [];
-
-                for(var x = 0; x < items.length; x++) {
-                    console.log("i am here now in this forloop");
-                    if (items[x] == null || items[x] != current) {
-                        console.log("meaw asdad");
-                        d['meida'] = media;
-                        ret_items.push(d);
-
-                        if (items[x] != null) {
-                            console.log("meawe");
-                            i = items[x];
-                            media = [];
-                            if (i.mediaid != null) {
-                                // chnging media
-                                media.push(i.mediaid);
-                            }
-                            d = {'id':i.postid, 
-                                'username':i.username, 
-                                'property':
-                                    {
-                                        'likes':i.numliked
-                                    }, 
-                                'retweeted':i.retweet_cnt,
-                                'content':i.content,
-                                'timestamp': Date.parse(i.date.toString()), 
-                                'childType':i.child_type,
-                                'parent':i.parent_id
-                            };
-                            console.log("\n\nnew d\n\n");
-                            console.log(d);
-                            current = i.postid;
-
-                        }
-                        
+                var rank_order = "sum DESC";
+                if (data.rank != null) {
+                    if(data.rank == "time") {
+                        rank_order = "posts.date DESC";
+                    } else if (data.rank = "interest") {
+                        rank_order = "sum DESC";
                     } else {
-                        if (items[x][1] == null) {
-                            continue;
-                        }
-                        if (items[x][8] == null) {
-                            media.push(items[x][8]);
-                        }
+                        res.json({status:"error", error:"invalid Rank type passed in"});
                     }
                 }
-                res.json({status:"OK", items:ret_items});
-            }) .catch (function (err) {
-                console.log("something went wrong at try catch");
-                console.log(err);
-                res.json({status: 'error', error: "Something went wrong at connection"});
+
+                if (data.parent != null) {
+                    var parent = data.parent;
+                    miniquery += "AND parent_id = %s ";
+                    q_data.push(parent);
+                }
+                if (data.replies != null) {
+                    if (data.replies == false) {
+                        miniquery += "AND (child_type != %s  OR child_type is NULL) ";
+                        q_data.push("reply");
+                    }
+                }
+
+                if(data.following != null) {
+                    miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
+                    q_data.push(user_cookie);
+                }
+
+                order_query = "ORDER BY " + rank_order  + ", posts.postid";
+                miniquery += order_query;
+                miniquery += " LIMIT %s";
+                q_data.push(limit)
+                console.log("Q_DATA IS ");
+                console.log(q_data);
+
+                query = util.format(query , miniquery) + joinquery + where_query + order_query;
+                console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
+                new_query = fix_string_formatting(query, q_data);
+                console.log("new_query is ============= ", new_query);
+
+                db.any(new_query, q_data)
+                    .then(function (new_data) {
+                        if (new_data.length == 0) {
+                            return res.json({status: "OK", items: []});
+                            console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+                        }
+                        console.log(new_data);
+                        var items = new_data;
+                        ret_items = [];
+                        i = items[0];
+                        console.log(items);
+                        for(var x = 0; x < items.length && i[x] == null; x++) {
+                        // while (items.length > 0 && i[1] == null) {
+                            // items.slice(1);
+                            i = items[x];
+                            console.log("i am in this loopyyy");
+                        }
+                        console.log('i is ===>>> ');
+                        console.log(i);
+                        // console.log(i.date);
+                        // console.log(i[2]);
+                        d = {'id':i.postid, 
+                            'username':i.username, 
+                            'property':
+                                {
+                                    'likes':i.numliked
+                                }, 
+                            'retweeted':i.retweet_cnt,
+                            'content':i.content,
+                            'timestamp': Date.parse(i.date.toString()), 
+                            'childType':i.child_type,
+                            'parent':i.parent_id
+                        };
+                        console.log(items);
+                        current = d.id;
+                        console.log(d);
+                        console.log(current);
+                        media = [];
+
+                        for(var x = 0; x < items.length; x++) {
+                            console.log("i am here now in this forloop");
+                            if (items[x] == null || items[x] != current) {
+                                console.log("meaw asdad");
+                                d['meida'] = media;
+                                ret_items.push(d);
+
+                                if (items[x] != null) {
+                                    console.log("meawe");
+                                    i = items[x];
+                                    media = [];
+                                    if (i.mediaid != null) {
+                                        // chnging media
+                                        media.push(i.mediaid);
+                                    }
+                                    d = {'id':i.postid, 
+                                        'username':i.username, 
+                                        'property':
+                                            {
+                                                'likes':i.numliked
+                                            }, 
+                                        'retweeted':i.retweet_cnt,
+                                        'content':i.content,
+                                        'timestamp': Date.parse(i.date.toString()), 
+                                        'childType':i.child_type,
+                                        'parent':i.parent_id
+                                    };
+                                    console.log("\n\nnew d\n\n");
+                                    console.log(d);
+                                    current = i.postid;
+
+                                }
+                                
+                            } else {
+                                if (items[x][1] == null) {
+                                    continue;
+                                }
+                                if (items[x][8] == null) {
+                                    media.push(items[x][8]);
+                                }
+                            }
+                        }
+                        res.json({status:"OK", items:ret_items});
+                        console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+                    }) .catch (function (err) {
+                        console.log("something went wrong at try catch");
+                        console.log(err);
+                        res.json({status: 'error', error: "Something went wrong at connection"});
+                    });
             });
+
+        } else {
+            var rank_order = "sum DESC";
+            if (data.rank != null) {
+                if(data.rank == "time") {
+                    rank_order = "posts.date DESC";
+                } else if (data.rank = "interest") {
+                    rank_order = "sum DESC";
+                } else {
+                    res.json({status:"error", error:"invalid Rank type passed in"});
+                }
+            }
+
+            if (data.parent != null) {
+                var parent = data.parent;
+                miniquery += "AND parent_id = %s ";
+                q_data.push(parent);
+            }
+            if (data.replies != null) {
+                if (data.replies == false) {
+                    miniquery += "AND (child_type != %s  OR child_type is NULL) ";
+                    q_data.push("reply");
+                }
+            }
+
+            if(data.following != null) {
+                miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
+                q_data.push(user_cookie);
+            }
+
+            order_query = "ORDER BY " + rank_order  + ", posts.postid";
+            miniquery += order_query;
+            miniquery += " LIMIT %s";
+            q_data.push(limit)
+            console.log("Q_DATA IS ");
+            console.log(q_data);
+
+            query = util.format(query , miniquery) + joinquery + where_query + order_query;
+            console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
+            new_query = fix_string_formatting(query, q_data);
+            console.log("new_query is ============= ", new_query);
+
+            db.any(new_query, q_data)
+                .then(function (new_data) {
+                    if (new_data.length == 0) {
+                        return res.json({status: "OK", items: []});
+                        console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+                    }
+                    console.log(new_data);
+                    var items = new_data;
+                    ret_items = [];
+                    i = items[0];
+                    console.log(items);
+                    for(var x = 0; x < items.length && i[x] == null; x++) {
+                    // while (items.length > 0 && i[1] == null) {
+                        // items.slice(1);
+                        i = items[x];
+                        console.log("i am in this loopyyy");
+                    }
+                    console.log('i is ===>>> ');
+                    console.log(i);
+                    // console.log(i.date);
+                    // console.log(i[2]);
+                    d = {'id':i.postid, 
+                        'username':i.username, 
+                        'property':
+                            {
+                                'likes':i.numliked
+                            }, 
+                        'retweeted':i.retweet_cnt,
+                        'content':i.content,
+                        'timestamp': Date.parse(i.date.toString()), 
+                        'childType':i.child_type,
+                        'parent':i.parent_id
+                    };
+                    console.log(items);
+                    current = d.id;
+                    console.log(d);
+                    console.log(current);
+                    media = [];
+
+                    for(var x = 0; x < items.length; x++) {
+                        console.log("i am here now in this forloop");
+                        if (items[x] == null || items[x] != current) {
+                            console.log("meaw asdad");
+                            d['meida'] = media;
+                            ret_items.push(d);
+
+                            if (items[x] != null) {
+                                console.log("meawe");
+                                i = items[x];
+                                media = [];
+                                if (i.mediaid != null) {
+                                    // chnging media
+                                    media.push(i.mediaid);
+                                }
+                                d = {'id':i.postid, 
+                                    'username':i.username, 
+                                    'property':
+                                        {
+                                            'likes':i.numliked
+                                        }, 
+                                    'retweeted':i.retweet_cnt,
+                                    'content':i.content,
+                                    'timestamp': Date.parse(i.date.toString()), 
+                                    'childType':i.child_type,
+                                    'parent':i.parent_id
+                                };
+                                console.log("\n\nnew d\n\n");
+                                console.log(d);
+                                current = i.postid;
+
+                            }
+                            
+                        } else {
+                            if (items[x][1] == null) {
+                                continue;
+                            }
+                            if (items[x][8] == null) {
+                                media.push(items[x][8]);
+                            }
+                        }
+                    }
+                    res.json({status:"OK", items:ret_items});
+                    console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+                }) .catch (function (err) {
+                    console.log("something went wrong at try catch");
+                    console.log(err);
+                    res.json({status: 'error', error: "Something went wrong at connection"});
+                });
+            }
 
     }
 
-    console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+    // console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
 
 })
 
