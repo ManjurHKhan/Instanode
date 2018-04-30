@@ -155,10 +155,9 @@ app.post('/adduser', function(req, res) {
 app.post('/login', function (req, res) {
     console.log("doing login");
     var user_session = req.cookies;
-    console.log(user_session);
-    user_id = user_session['userID'] == '' ? null : user_session['userID'];
-    console.log(user_id,user_id != null )
-    if(user_id == null) {
+    var user_id = user_session['userID'] == '' ? null : user_session['userID'];
+
+    if ( user_id == null) {
         // db.one("SELECT username FROM USERS where username=$1 and validated is True", [user_id])
         //     .then(function (new_data) {
         //         if(new_data == null || new_data.length == 0) {
@@ -1074,10 +1073,10 @@ app.post("/item/:id/like", function(req, res) {
 
     var id = req.params.id;
 
-    console.log("liking post with id - " + id)
 
     var user_session =  req.cookies;
     username = user_session['userID'] == '' ? null : user_session['userID'];
+    console.log("liking post with id - " + id + " --- " + username)
 
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in while trying to like"});
