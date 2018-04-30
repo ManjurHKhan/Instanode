@@ -1113,8 +1113,16 @@ app.post("/item/:id/like", function(req, res) {
                     return;
 
             });
+        })
         //res.json({status:"error",like:like,msg:"task-insert-into - like"})
-
+        .then(events => {
+            // success;
+            return;
+        })
+        .catch(error => {
+            // error
+            res.json({status:"error",msg:"ERROR LIKING"})
+            return
         });
 
         //res.json({status:"error",like:like,msg:"task-like"})
@@ -1123,25 +1131,34 @@ app.post("/item/:id/like", function(req, res) {
     else{
         db.task(function(){
             db.one("DELETE FROM likes where username=$1 and postid=$2 RETURNING *", [username,id])
-                .then (function (unlike_data){
-                    if (unlike_data == null || Object.keys(unlike_data).length == 0){
-                        return res.json({status:"error",msg:"did not unlike a like that didnt exist"})
-                    }
+            .then (function (unlike_data){
+                if (unlike_data == null || Object.keys(unlike_data).length == 0){
+                    return res.json({status:"error",msg:"did not unlike a like that didnt exist"})
+                }
 
-                    db.none("UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
-                        .then(function () {
-                            return res.json({status:"OK",msg:"Unliked and decremented like count in post"})
-                        }) .catch(function (err) {
-                            console.log("Error happened while unliking to updating like table",err);
-                            return res.json({status:"error",msg:"error happened while updating less likes"})
-                    });
-
-                }) .catch (function(err){
-                    console.log("error happened while unliking to updating like table",err);
-                    return res.json({status:"error",msg:"error happened while unliking"})
-
+                db.none("UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
+                    .then(function () {
+                        return res.json({status:"OK",msg:"Unliked and decremented like count in post"})
+                    }) .catch(function (err) {
+                        console.log("Error happened while unliking to updating like table",err);
+                        return res.json({status:"error",msg:"error happened while updating less likes"})
                 });
+
+            }) .catch (function(err){
+                console.log("error happened while unliking to updating like table",err);
+                return res.json({status:"error",msg:"error happened while unliking"})
+
             });
+        })
+        .then(events => {
+            // success;
+            return;
+        })
+        .catch(error => {
+            // error
+            res.json({status:"error",msg:"ERROR UNLIKING"})
+            return
+        });
     }
 });
 
