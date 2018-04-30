@@ -1106,13 +1106,19 @@ app.post("/item/:id/like", function(req, res) {
                     });
             }) 
             .catch (function(err){
-                    console.log("error happened while inserting to like table", err);
-                    return res.json({status:"error",msg:"error happened while liking"})
+                    console.log("Like alread exists.... :/ ", err);
+                    res.json({status:"error",msg:"error happened while liking"})
+                    console.log("Json for like existing returned ", err);
+
+                    return;
 
             });
         //res.json({status:"error",like:like,msg:"task-insert-into - like"})
 
+        console.log("i got here... somehow liking... rip");
         });
+        console.log("wooo... maybe");
+
         return;
         //res.json({status:"error",like:like,msg:"task-like"})
 
@@ -1139,11 +1145,11 @@ app.post("/item/:id/like", function(req, res) {
 
                 });
             });
+        console.log("i got here... somehow unliking... rip");
+
         return;
 
     }
-    return res.json({status:"error",like:like,msg:"Somehow you got here while liking.. this is bad...."})
-
 });
 
 
