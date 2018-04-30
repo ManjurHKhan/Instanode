@@ -63,11 +63,11 @@ var storage = multer.diskStorage({
 var app = express()
 app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(session({
-    secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq',
-    resave: false,
-    saveUninitialized: false
-}));
+// app.use(session({
+//     secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq',
+//     resave: false,
+//     saveUninitialized: false
+// }));
 
 
 
@@ -154,8 +154,9 @@ app.post('/adduser', function(req, res) {
 
 app.post('/login', function (req, res) {
     console.log("doing login");
-    var user_session = req.session;
-    user_id = user_session.userID;
+    var user_session = req.cookies;
+    console.log(user_session);
+    user_id = user_session['userID'] == '' ? null : user_session['userID'];
     console.log(user_id,user_id != null )
     if(user_id == null) {
         // db.one("SELECT username FROM USERS where username=$1 and validated is True", [user_id])
@@ -188,8 +189,10 @@ app.post('/login', function (req, res) {
                 if(passwd == secret_pass) {
                     // set session
                     console.log("hello????")
-                    user_session.userID = username;
-                    req.session.userID = username;
+                    // user_session.userID = username;
+                    // req.session.userID = username;
+                    res.cookie('userID', username);
+                    
                     return res.json({status: 'OK'});
                 } else {
                     return res.json({status: 'error', error: 'Password does not match'});
@@ -215,7 +218,8 @@ app.post('/login', function (req, res) {
 
 app.post("/logout", function (req, res) {
     console.log("At logout");
-    req.session.userID = null;
+    res.clearCookie('userID');
+    console.log(req.cookies);
     return res.json({status: 'OK'});
     // req.session.destroy(function(err) {
     //     if(err) {
@@ -287,7 +291,7 @@ app.post('/additem', function (req, res) {
     console.log("for a post request on /additem");
 
     /** checking if user is logged in using sessions **/
-    var user_session = req.session;
+    var user_session = req.cookies;
     if(user_session == null) {
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -296,8 +300,8 @@ app.post('/additem', function (req, res) {
         return res.json({status: "error", error: "No data was sent on res.body"});
     }
     console.log(data);
-
-    var user_cookie = user_session.userID;
+    console.log(user_session);
+    var user_cookie = user_session['userID'] == '' ? null : user_session['userID'];
     if(user_cookie == null) {
         console.log("cookies : ", req.cookies);
         return res.json({status: "error", error: "User is not logged in"});
@@ -436,8 +440,8 @@ app.get("/item/:id", function(req, res) {
 
     console.log("doing get item for == " + id);
 
-    var user_session = req.session;
-    var username = user_session.userID;
+    var user_session = req.cookies;
+    var username = user_session['userID'] == '' ? null : user_session['userID'];
 
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in"});
@@ -491,8 +495,8 @@ app.post("/search", function(req, res) {
     console.log("in search");
     var starting_time = Date.now();
 
-    var user_session = req.session;
-    var user_cookie = user_session.userID;
+    var user_session = req.cookies;
+    var user_cookie = user_session['userID'] == '' ? null : user_session['userID'];
 
     if(user_cookie == null) {
         return res.json({status: "error", error: "User is not logged in"});
@@ -1002,8 +1006,8 @@ app.get("/user/:username/following", function(req, res) {
 /** Follow a user **/
 app.post("/follow", function(req, res) {
 
-    var user_session =  req.session;
-    username = user_session.userID;
+    var user_session =  req.cookies;
+    username = user_session['userID'] == '' ? null : user_session['userID'];
     console.log(user_session);
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in while trying to Follow"});
@@ -1061,8 +1065,8 @@ app.post("/item/:id/like", function(req, res) {
 
     console.log("liking post with id" + id)
 
-    var user_session =  req.session;
-    username = user_session.userID;
+    var user_session =  req.cookies;
+    username = user_session['userID'] == '' ? null : user_session['userID'];
 
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in while trying to like"});
