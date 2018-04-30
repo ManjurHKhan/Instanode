@@ -1115,11 +1115,8 @@ app.post("/item/:id/like", function(req, res) {
             });
         //res.json({status:"error",like:like,msg:"task-insert-into - like"})
 
-        console.log("i got here... somehow liking... rip");
         });
-        console.log("wooo... maybe");
 
-        return;
         //res.json({status:"error",like:like,msg:"task-like"})
 
     }
@@ -1145,10 +1142,6 @@ app.post("/item/:id/like", function(req, res) {
 
                 });
             });
-        console.log("i got here... somehow unliking... rip");
-
-        return;
-
     }
 });
 
