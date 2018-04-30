@@ -259,7 +259,7 @@ app.post("/verify", function(req, res) {
             username = new_data.username;
             db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
                 .then(function (new_data) {
-                    if((new_data == null || new_data.length == 0) && key != 'abracadabra') {
+                    if((new_data == null || Object.keys(new_data).length == 0) && key != 'abracadabra') {
                         console.log("failed to verify invalid key + " + username + " <> " + key);
                         return res.json({status: "error", error: "Invalid key given"});
                     }
@@ -267,9 +267,11 @@ app.post("/verify", function(req, res) {
                     db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
                         .then(function (err) {
                             console.log("db update for validating user");
+
                         }) .catch(function(err) {
                             console.log("something went wrong while validating users");
                             console.log(err);
+
                         });
                 }) .catch(function (err) {
                     console.log("something went wrong while connecting.")
@@ -1106,23 +1108,21 @@ app.post("/item/:id/like", function(req, res) {
             }) 
             .catch (function(err){
                     console.log("Like alread exists.... :/ ", err);
-                    res.json({status:"error",msg:"error happened while liking"})
+                    return res.json({status:"error",msg:"error happened while liking - like probably already exists"})
                     console.log("Json for like existing returned ", err);
-
-                    return;
             });
         })
-        //res.json({status:"error",like:like,msg:"task-insert-into - like"})
-        .then(events => {
-            // success;
-            return;
-        })
-        .catch(error => {
-            // error
-            console.log("wpppppp, ");
-            res.json({status:"error",msg:"ERROR LIKING"})
-            return
-        });
+        // //res.json({status:"error",like:like,msg:"task-insert-into - like"})
+        // .then(events => {
+        //     // success;
+        //     return;
+        // })
+        // .catch(error => {
+        //     // error
+        //     console.log("wpppppp, ");
+        //     res.json({status:"error",msg:"ERROR LIKING"})
+        //     return
+        // });
 
         //res.json({status:"error",like:like,msg:"task-like"})
 
@@ -1149,15 +1149,15 @@ app.post("/item/:id/like", function(req, res) {
 
             });
         })
-        .then(events => {
-            // success;
-            return;
-        })
-        .catch(error => {
-            // error
-            res.json({status:"error",msg:"ERROR UNLIKING"})
-            return
-        });
+        // .then(events => {
+        //     // success;
+        //     return;
+        // })
+        // .catch(error => {
+        //     // error
+        //     res.json({status:"error",msg:"ERROR UNLIKING"})
+        //     return
+        // });
     }
 });
 
