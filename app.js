@@ -174,7 +174,7 @@ app.post('/login', function (req, res) {
             return res.json({status: "error", error: "not valid data"});
         }
         // validate loging
-        db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
+        db.any("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
                     return res.json({status: 'error', error: 'User does not exists'});
@@ -518,7 +518,7 @@ app.post("/search", function(req, res) {
         }
         timestamp = Math.floor(Date.now() / 1000);
         if (data.timestamp != null) {
-            timestamp = date.timestamp;
+            timestamp = data.timestamp;
         }
         timestamp = new Date(timestamp * 1000);
         timestamp = timestamp.toISOString();
