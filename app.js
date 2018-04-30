@@ -497,7 +497,7 @@ app.post("/search", function(req, res) {
 
     var user_session = req.cookies;
     var user_cookie = user_session['userID'] == '' ? null : user_session['userID'];
-
+    console.log(user_cookie);
     if(user_cookie == null) {
         return res.json({status: "error", error: "User is not logged in"});
     }
@@ -635,8 +635,10 @@ app.post("/search", function(req, res) {
                 }
 
                 if(data.following != null) {
-                    miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
-                    q_data.push(user_cookie);
+                    if(data.following == true) {
+                        miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
+                        q_data.push(user_cookie);
+                    }
                 }
 
                 order_query = "ORDER BY " + rank_order  + ", posts.postid";
@@ -654,8 +656,8 @@ app.post("/search", function(req, res) {
                 db.any(new_query, q_data)
                     .then(function (new_data) {
                         if (new_data.length == 0) {
-                            return res.json({status: "OK", items: []});
                             console.log(" === SEARCH TOOK " + (Date.now() - starting_time));
+                            return res.json({status: "OK", items: []});
                         }
                         console.log(new_data);
                         var items = new_data;
