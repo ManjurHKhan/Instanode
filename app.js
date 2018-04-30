@@ -464,7 +464,7 @@ app.get("/item/:id", function(req, res) {
             console.log(Date.parse(new_data[0]['date'].toString()));
             console.log("++++++++++++===");
             new_data = new_data[0];
-            item = {'id':new_data['id'], 
+            item = {'id':id, 
                     'username':new_data['username'], 
                     'property':
                         {
