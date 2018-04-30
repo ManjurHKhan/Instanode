@@ -1110,10 +1110,11 @@ app.post("/item/:id/like", function(req, res) {
                     return res.json({status:"error",msg:"error happened while liking"})
 
             });
-        res.json({status:"error",like:like,msg:"task-insert-into - like"})
+        //res.json({status:"error",like:like,msg:"task-insert-into - like"})
 
         });
-        res.json({status:"error",like:like,msg:"task-like"})
+        return;
+        //res.json({status:"error",like:like,msg:"task-like"})
 
     }
     else{
@@ -1138,7 +1139,7 @@ app.post("/item/:id/like", function(req, res) {
 
                 });
             });
-        res.json({status:"error",like:like,msg:"task-unlike"})
+        return;
 
     }
     return res.json({status:"error",like:like,msg:"Somehow you got here while liking.. this is bad...."})
