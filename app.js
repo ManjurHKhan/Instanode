@@ -1046,9 +1046,8 @@ app.post("/follow", function(req, res) {
             })
             .catch(function (error) {
                 console.log("error with following")
-                if(error == null) {
-                    return res.json({status: "error", error: "following not inserted"});
-                }
+                return res.json({status: "error", error: "following not inserted"});
+
             });
     } else{
 
@@ -1073,7 +1072,7 @@ app.post("/item/:id/like", function(req, res) {
 
     var id = req.params.id;
 
-    console.log("liking post with id" + id)
+    console.log("liking post with id - " + id)
 
     var user_session =  req.cookies;
     username = user_session['userID'] == '' ? null : user_session['userID'];
@@ -1111,7 +1110,6 @@ app.post("/item/:id/like", function(req, res) {
                     console.log("Json for like existing returned ", err);
 
                     return;
-
             });
         })
         //res.json({status:"error",like:like,msg:"task-insert-into - like"})
@@ -1121,6 +1119,7 @@ app.post("/item/:id/like", function(req, res) {
         })
         .catch(error => {
             // error
+            console.log("wpppppp, ");
             res.json({status:"error",msg:"ERROR LIKING"})
             return
         });
