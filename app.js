@@ -1099,7 +1099,7 @@ app.post("/item/:id/like", function(req, res) {
             db.none("INSERT INTO likes (username, postid) VALUES ($1, $2);", [username, id])
             .then (function (){
 
-                db.none("UPDATE posts set numliked = numliked+1 where postid=$1;", [id])
+                db.none("BEGIN; UPDATE posts set numliked = numliked+1 where postid=$1; COMMIT;", [id])
                     .then(function () {
                         console.log("SUcESS in updating");
 
@@ -1114,7 +1114,7 @@ app.post("/item/:id/like", function(req, res) {
             .catch (function(err){
                     // res.json({status:"OK",msg:"error happened while liking - like probably already exists"})
                     
-                    console.log("Like alread exists.... :/ ", err);
+                    console.log("Like already exists.... :/ ", err);
                     console.log("Json for like existing returned ", err);
                     return err;
             });
@@ -1144,7 +1144,7 @@ app.post("/item/:id/like", function(req, res) {
                     return;
                 }
 
-                db.none("UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
+                db.none("BEGIN; UPDATE posts set numliked = numliked-1 where postid=$1; COMMIT;", [id])
                     .then(function () {
                         // res.json({status:"OK",msg:"Unliked and decremented like count in post"})
                         return;
