@@ -574,7 +574,7 @@ app.post("/search", function(req, res) {
                         "query": {
                             "bool": {
                                 "must": [
-                                {  "match": { "content": "%s"%(data["q"].replace("\n",""))} }
+                                {  "match": { "content": "%s"%(data.q.replace("\n",""))} }
                                 // #,
                                 // # { "range": { "timestamp":  {
                                 // #             "gte" : timestamp,
