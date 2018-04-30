@@ -174,7 +174,7 @@ app.post('/login', function (req, res) {
             return res.json({status: "error", error: "not valid data"});
         }
         // validate loging
-        db.any("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
+        db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
                     return res.json({status: 'error', error: 'User does not exists'});
