@@ -1147,7 +1147,7 @@ function fix_string_formatting(string, variables) {
 //============== SETTING UP NON-API ENDPOINTS FOR SANITY=============================================//
 
 app.get('/', function (req, res) {
-    res.send('Hello File upload is only a click away. jk');
+    res.send('Welcome to Instanode');
 })
 
 
