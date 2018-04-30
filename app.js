@@ -1104,13 +1104,17 @@ app.post("/item/:id/like", function(req, res) {
                         return res.json({status:"error",msg:"error happened while updating more likes"})
 
                     });
-                }) 
+            }) 
             .catch (function(err){
                     console.log("error happened while inserting to like table", err);
                     return res.json({status:"error",msg:"error happened while liking"})
 
             });
+        res.json({status:"error",like:like,msg:"task-insert-into - like"})
+
         });
+        res.json({status:"error",like:like,msg:"task-like"})
+
     }
     else{
         db.task(function(){
@@ -1134,6 +1138,7 @@ app.post("/item/:id/like", function(req, res) {
 
                 });
             });
+        res.json({status:"error",like:like,msg:"task-unlike"})
 
     }
     return res.json({status:"error",like:like,msg:"Somehow you got here while liking.. this is bad...."})
