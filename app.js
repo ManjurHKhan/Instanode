@@ -189,6 +189,7 @@ app.post('/login', function (req, res) {
                     // set session
                     console.log("hello????")
                     user_session.userID = username;
+                    req.session.userID = username;
                     return res.json({status: 'OK'});
                 } else {
                     return res.json({status: 'error', error: 'Password does not match'});
