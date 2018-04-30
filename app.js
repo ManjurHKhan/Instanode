@@ -1018,8 +1018,7 @@ app.post("/follow", function(req, res) {
     if (user_following == null){
         return res.json ({status: "error", error: "no username provided - who are you trying to following"});
     }
-    // var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
-    var follow = data.follow == null ? true : data.follow;
+    var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
     if (follow) {
 
         db.none ("INSERT INTO followers (username, follows) VALUES($1 , $2);",[username,user_following ])
@@ -1041,7 +1040,7 @@ app.post("/follow", function(req, res) {
 
         db.none ("DELETE FROM followers WHERE username=$1 and follows=$2;", [username,user_following ])
             .then(function (new_data) {
-                console.log("deleted following relation fine");
+                console.log("deleted following relation fine")
                 return res.json({status: "OK", msg: "Unfollowed successfully"});
 
             })
@@ -1076,8 +1075,7 @@ app.post("/item/:id/like", function(req, res) {
     var like_data = data.like;
     var like = true;
     console.log(like_data);
-    // like = data.like == null ? true : data.like.trim().toLowerCase() == "true";
-    like = data.like == null ? true : data.like;
+    like = data.like == null ? true : data.like.trim().toLowerCase() == "true";
     query = ""
     if (like) {
         db.task(function(){
