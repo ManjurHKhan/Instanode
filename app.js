@@ -923,10 +923,14 @@ app.get("/user/:username", function(req, res) {
                             })
                             .catch(function (followers_err) {
                                 console.log("something went wrong with finding follower counts", followers_err)
+                                return res.json ({status: "error", msg: "something went wrong with finding follower counts"});
+                            
                             })
                     })
                     .catch(function(errror){
                         console.log("something went wrong finding following counts",errror);
+                        return res.json ({status: "error", msg: "something went wrong with finding FOLLOWING counts"});
+
                     })
 
             }
@@ -1097,7 +1101,7 @@ app.post("/item/:id/like", function(req, res) {
                         return res.json({status:"OK",msg:"Liked and incremented like count in post"})
                     }) .catch(function (err) {
                         console.log("ERRR :( with updating like count", err);
-                            return res.json({status:"error",msg:"error happened while updating more likes"})
+                        return res.json({status:"error",msg:"error happened while updating more likes"})
 
                     });
                 }) 
@@ -1132,6 +1136,7 @@ app.post("/item/:id/like", function(req, res) {
             });
 
     }
+    return res.json({status:"error",like:like,msg:"Somehow you got here while liking.. this is bad...."})
 
 });
 
