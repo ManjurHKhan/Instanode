@@ -633,12 +633,15 @@ app.post("/search", function(req, res) {
                         q_data.push("reply");
                     }
                 }
-
-                if(data.following != null) {
-                    if(data.following == true) {
-                        miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
-                        q_data.push(user_cookie);
-                    }
+                var following = data.following == null ? true : data.following;
+                // if(data.following != null) {
+                //     if(data.following == true) {
+                        
+                //     }
+                // }
+                if (following) {
+                    miniquery += "AND posts.username IN (SELECT followers.follows FROM followers WHERE followers.username = %s)  ";
+                    q_data.push(user_cookie);
                 }
 
                 order_query = "ORDER BY " + rank_order  + ", posts.postid";
