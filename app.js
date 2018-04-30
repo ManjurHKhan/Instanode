@@ -65,8 +65,8 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(session({
     secret: 'FbtEs4x32MEBN1EAaMpcDVpbAyGPpq',
-    resave: true,
-    saveUninitialized: true
+    resave: false,
+    saveUninitialized: false
 }));
 
 
