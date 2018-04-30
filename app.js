@@ -1092,24 +1092,30 @@ app.post("/item/:id/like", function(req, res) {
     // console.log(like_data);
     like = data.like == null ? true : data.like;
     query = ""
+    res.json({status:"OK"})
     if (like) {
+
         db.task(function(){
             db.none("INSERT INTO likes (username, postid) VALUES ($1, $2);", [username, id])
             .then (function (){
 
                 db.none("UPDATE posts set numliked = numliked+1 where postid=$1;", [id])
                     .then(function () {
-                        return res.json({status:"OK",msg:"Liked and incremented like count in post"})
+                        console.log("SUcESS in updating");
+
+                        // return res.json({status:"OK",msg:"Liked and incremented like count in post"})
                     }) .catch(function (err) {
                         console.log("ERRR :( with updating like count", err);
-                        return res.json({status:"error",msg:"error happened while updating more likes"})
+                        // return res.json({status:"error",msg:"error happened while updating more likes"})
 
                     });
             }) 
             .catch (function(err){
+                    res.json({status:"error",msg:"error happened while liking - like probably already exists"})
+                    
                     console.log("Like alread exists.... :/ ", err);
-                    return res.json({status:"error",msg:"error happened while liking - like probably already exists"})
                     console.log("Json for like existing returned ", err);
+                    return err;
             });
         })
         // //res.json({status:"error",like:like,msg:"task-insert-into - like"})
@@ -1132,20 +1138,22 @@ app.post("/item/:id/like", function(req, res) {
             db.one("DELETE FROM likes where username=$1 and postid=$2 RETURNING *", [username,id])
             .then (function (unlike_data){
                 if (unlike_data == null || Object.keys(unlike_data).length == 0){
-                    return res.json({status:"error",msg:"did not unlike a like that didnt exist"})
+                    // return res.json({status:"error",msg:"did not unlike a like that didnt exist"})
+                    console.log("Nothing was deleted",err);
+                
                 }
 
                 db.none("UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
                     .then(function () {
-                        return res.json({status:"OK",msg:"Unliked and decremented like count in post"})
+                        // return res.json({status:"OK",msg:"Unliked and decremented like count in post"})
                     }) .catch(function (err) {
                         console.log("Error happened while unliking to updating like table",err);
-                        return res.json({status:"error",msg:"error happened while updating less likes"})
+                        // return res.json({status:"error",msg:"error happened while updating less likes"})
                 });
 
             }) .catch (function(err){
-                console.log("error happened while unliking to updating like table",err);
-                return res.json({status:"error",msg:"error happened while unliking"})
+                console.log("error happened while unliking to deleting like table",err);
+                // return res.json({status:"error",msg:"error happened while unliking"})
 
             });
         })
