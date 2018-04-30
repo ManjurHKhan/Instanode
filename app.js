@@ -1022,7 +1022,8 @@ app.post("/follow", function(req, res) {
     if (user_following == null){
         return res.json ({status: "error", error: "no username provided - who are you trying to following"});
     }
-    var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
+    // var follow = data.follow == null ? true : data.follow.trim().toLowerCase() == "true";
+    var follow = data.follow == null ? true : data.follow;
     if (follow) {
 
         db.none ("INSERT INTO followers (username, follows) VALUES($1 , $2);",[username,user_following ])
