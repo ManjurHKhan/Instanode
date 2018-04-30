@@ -449,7 +449,7 @@ app.get("/item/:id", function(req, res) {
         return res.json({status: "error", error: "User is not logged in"});
     }
 
-    db.any("SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid FROM posts FULL OUTER JOIN user_media ON posts.postid = user_media.postid WHERE posts.postid = $1", [id])
+    db.any("SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid as media FROM posts FULL OUTER JOIN user_media ON posts.postid = user_media.postid WHERE posts.postid = $1", [id])
         .then (function (new_data) {
             if(new_data == null || new_data.length == 0) {
                 return res.json({status: "error", error: "item not found"});
@@ -470,7 +470,7 @@ app.get("/item/:id", function(req, res) {
                     'username':new_data['username'], 
                     'property':
                         {
-                            'likes':new_data['likes']
+                            'likes':new_data['numliked']
                         }, 
                     'retweeted': new_data['retweet_cnt'],
                     'content': new_data['content'],
@@ -701,7 +701,7 @@ app.post("/search", function(req, res) {
                             console.log("i am here now in this forloop");
                             if (items[x] == null || items[x] != current) {
                                 console.log("meaw asdad");
-                                d['meida'] = media;
+                                d['media'] = media;
                                 ret_items.push(d);
 
                                 if (items[x] != null) {
@@ -734,8 +734,8 @@ app.post("/search", function(req, res) {
                                 if (items[x][1] == null) {
                                     continue;
                                 }
-                                if (items[x][8] == null) {
-                                    media.push(items[x][8]);
+                                if (items[x]["mediaid"] == null) {
+                                    media.push(items[x]["mediaid"]);
                                 }
                             }
                         }
@@ -1108,12 +1108,12 @@ app.post("/item/:id/like", function(req, res) {
                         return;
                     }) .catch(function (err) {
                         console.log("ERRR :( with updating like count", err);
-                        res.json({status:"error",msg:"error happened while updating more likes"})
+                        res.json({status:"OK",msg:"error happened while updating more likes"})
                         return;
                     });
             }) 
             .catch (function(err){
-                    res.json({status:"error",msg:"error happened while liking - like probably already exists"})
+                    res.json({status:"OK",msg:"error happened while liking - like probably already exists"})
                     
                     console.log("Like alread exists.... :/ ", err);
                     console.log("Json for like existing returned ", err);
@@ -1140,7 +1140,7 @@ app.post("/item/:id/like", function(req, res) {
             db.one("DELETE FROM likes where username=$1 and postid=$2 RETURNING *", [username,id])
             .then (function (unlike_data){
                 if (unlike_data == null || Object.keys(unlike_data).length == 0){
-                    res.json({status:"error",msg:"did not unlike a like that didnt exist"})
+                    res.json({status:"OK",msg:"did not unlike a like that didnt exist"})
                     console.log("Nothing was deleted",err);
                     return;
                 }
@@ -1151,13 +1151,13 @@ app.post("/item/:id/like", function(req, res) {
                         return;
                     }) .catch(function (err) {
                         console.log("Error happened while unliking to updating like table",err);
-                        res.json({status:"error",msg:"error happened while updating less likes"})
+                        res.json({status:"OK",msg:"error happened while updating less likes"})
                         return;
                 });
 
             }) .catch (function(err){
                 console.log("error happened while unliking to deleting like table",err);
-                res.json({status:"error",msg:"error happened while unliking"})
+                res.json({status:"OK",msg:"error happened while unliking"})
                 return
 
             });
