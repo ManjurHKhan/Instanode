@@ -1084,8 +1084,8 @@ app.post("/item/:id/like", function(req, res) {
     }
     var like_data = data.like;
     var like = true;
-    console.log(like_data);
-    like = data.like == null ? true : data.like.trim().toLowerCase() == "true";
+    // console.log(like_data);
+    like = data.like == null ? true : data.like;
     query = ""
     if (like) {
         db.task(function(){
