@@ -260,7 +260,7 @@ app.post("/verify", function(req, res) {
             db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
                 .then(function (new_data) {
                     if(new_data == null || new_data.length == 0) {
-                        console.log("invalid key");
+                        console.log("failed to verify invalid key + " + username + " <> " + key);
                         return res.json({status: "error", error: "Invalid key given"});
                     }
                     res.json({status: "OK"});
