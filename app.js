@@ -12,7 +12,7 @@ const elasticsearch = require('elasticsearch');
 var request = require('request');
 var util = require('util');
 
-const LOAD_BALANCER_IP = "130.245.171.38"
+const LOAD_BALANCER_IP = "130.245.168.67"
 
 /** elastic search set up **/
 const INDEX_NAME = "insta_index"
