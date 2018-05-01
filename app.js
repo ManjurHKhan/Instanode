@@ -200,7 +200,7 @@ app.post('/login', function (req, res) {
             }) .catch(function (err) {
                 console.log("Error happened while doing login");
                 console.log(err);
-                return res.json({status: 'error', error: 'Connection error happened'});
+                return res.json({status: 'error', error: 'Connection error happened', user: username});
             });
 
             // }) .catch (function (err) {
