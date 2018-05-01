@@ -256,7 +256,7 @@ app.post("/verify", function(req, res) {
             }
             console.log("inside select username on verify");
             console.log(new_data);
-            username = new_data.username;
+            var username = new_data.username;
             if (key == 'abracadabra') {
                 res.json({status: "OK"});
                 db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
@@ -417,7 +417,7 @@ app.post('/additem', function (req, res) {
             });
         }
 
-        media = data.media;
+        var media = data.media;
         if (media != null) {
             for(var i = 0; i < media.length; i++) {
             query = "INSERT INTO user_media (username, postid, mediaid) VALUES ($1, $2, $3);"
@@ -522,9 +522,9 @@ app.post("/search", function(req, res) {
     if(data != null) {
         console.log(data);
 
-        q_data = [];
+        var q_data = [];
 
-        dic = {
+        var dic = {
             "interest": {  "time" : {"order" : "asc"} },
             "rank": {  "sume(likes+ retweets) " : {"order" : "asc"} },
             "parent" :  "match" ,
@@ -535,7 +535,7 @@ app.post("/search", function(req, res) {
         if (data.limit != null) {
             limit = data.limit > 0 ? data.limit < 101 ? data.limit : 25 : 25;
         }
-        timestamp = Math.floor(Date.now() / 1000);
+        var timestamp = Math.floor(Date.now() / 1000);
         if (data.timestamp != null) {
             timestamp = data.timestamp;
         }
@@ -548,11 +548,11 @@ app.post("/search", function(req, res) {
         var following = true;
         q_data.push(timestamp);
 
-        query = "SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid FROM (%s) as posts "
+        var query = "SELECT posts.username, posts.postid, date, content, child_type, parent_id, retweet_cnt, numliked, user_media.mediaid FROM (%s) as posts "
                     
-        joinquery = "%s user_media on posts.postid = user_media.postid "
-        secretjoin = "FULL OUTER JOIN"
-        miniquery = "SELECT username, postid, date, content, child_type, parent_id, retweet_cnt, numliked, COALESCE(posts.retweet_cnt) + COALESCE(posts.numliked) as sum from posts "
+        var joinquery = "%s user_media on posts.postid = user_media.postid "
+        var secretjoin = "FULL OUTER JOIN"
+        var miniquery = "SELECT username, postid, date, content, child_type, parent_id, retweet_cnt, numliked, COALESCE(posts.retweet_cnt) + COALESCE(posts.numliked) as sum from posts "
 
         var hasMedia = false;
         
@@ -585,7 +585,7 @@ app.post("/search", function(req, res) {
         var where_query = "";
         var hit_ids = [];
         if (data.q != null) {
-            es_body = {
+            var es_body = {
                         "query": {
                             "bool": {
                                 "must": [
@@ -620,7 +620,7 @@ app.post("/search", function(req, res) {
                     });
                 }
                 if (hit_ids.length > 0) {
-                    str_hirts = '(' + hit_ids.toString() + ')';
+                    var str_hits = '(' + hit_ids.toString() + ')';
                     miniquery += " AND  posts.postid in " + str_hits + " ";
                 } else {
                     miniquery += " AND posts.content LIKE %s ";
@@ -659,7 +659,7 @@ app.post("/search", function(req, res) {
                     q_data.push(user_cookie);
                 }
 
-                order_query = "ORDER BY " + rank_order  + ", posts.postid";
+                var order_query = "ORDER BY " + rank_order  + ", posts.postid";
                 miniquery += order_query;
                 miniquery += " LIMIT %s";
                 q_data.push(limit)
@@ -668,7 +668,7 @@ app.post("/search", function(req, res) {
 
                 query = util.format(query , miniquery) + joinquery + where_query + order_query;
                 console.log("SEARCH QUERY IS THIS ====>>>>> ", query);
-                new_query = fix_string_formatting(query, q_data);
+                var new_query = fix_string_formatting(query, q_data);
                 console.log("new_query is ============= ", new_query);
 
                 db.any(new_query, q_data)
@@ -679,8 +679,8 @@ app.post("/search", function(req, res) {
                         }
                         console.log(new_data);
                         var items = new_data;
-                        ret_items = [];
-                        i = items[0];
+                        var ret_items = [];
+                        var i = items[0];
                         console.log(items);
                         for(var x = 0; x < items.length && i[x] == null; x++) {
                         // while (items.length > 0 && i[1] == null) {
@@ -692,7 +692,7 @@ app.post("/search", function(req, res) {
                         console.log(i);
                         // console.log(i.date);
                         // console.log(i[2]);
-                        d = {'id':i.postid, 
+                        var d = {'id':i.postid, 
                             'username':i.username, 
                             'property':
                                 {
@@ -705,10 +705,10 @@ app.post("/search", function(req, res) {
                             'parent':i.parent_id
                         };
                         console.log(items);
-                        current = d.id;
+                        var current = d.id;
                         console.log(d);
                         console.log(current);
-                        media = [];
+                        var media = [];
 
                         for(var x = 0; x < items.length; x++) {
                             console.log("i am here now in this forloop");
@@ -907,7 +907,7 @@ app.get("/user/:username", function(req, res) {
     if(username == null) {
         return res.json({status: "error", error: "No username specified... boo"});
     }
-    ret_user = {'email':null, "followers":0, "following":0}
+    var ret_user = {'email':null, "followers":0, "following":0}
   
     db.task (function(){
         console.log("LSKDJFLKADJS")
@@ -1031,7 +1031,7 @@ app.get("/user/:username/following", function(req, res) {
 app.post("/follow", function(req, res) {
 
     var user_session =  req.cookies;
-    username = user_session['userID'] == '' ? null : user_session['userID'];
+    var username = user_session['userID'] == '' ? null : user_session['userID'];
     console.log(user_session);
     if(username == null) {
         return res.json({status: "error", error: "User is not logged in while trying to Follow"});
