@@ -174,6 +174,7 @@ app.post('/login', function (req, res) {
             return res.json({status: "error", error: "not valid data"});
         }
         // validate loging
+        console.log(password);
         db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
@@ -256,27 +257,40 @@ app.post("/verify", function(req, res) {
             console.log("inside select username on verify");
             console.log(new_data);
             username = new_data.username;
-            db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
-                .then(function (new_data) {
-                    if((new_data == null || Object.keys(new_data).length == 0) && key != 'abracadabra') {
-                        console.log("failed to verify invalid key + " + username + " <> " + key);
-                        return res.json({status: "error", error: "Invalid key given"});
-                    }
-                    res.json({status: "OK"});
-                    db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
-                        .then(function (err) {
-                            console.log("db update for validating user");
+            if (key == 'abracadabra') {
+                res.json({status: "OK"});
+                db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
+                    .then(function (err) {
+                        console.log("db update for validating user");
 
-                        }) .catch(function(err) {
-                            console.log("something went wrong while validating users");
-                            console.log(err);
+                    }) .catch(function(err) {
+                        console.log("something went wrong while validating users");
+                        console.log(err);
 
-                        });
-                }) .catch(function (err) {
-                    console.log("something went wrong while connecting.")
-                    console.log(err);
-                    return res.json({status: "error", error: "connection error"});
-                });
+                    });
+            }else{
+                db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
+                    .then(function (new_data) {
+                        if((new_data == null || Object.keys(new_data).length == 0)) {
+                            console.log("failed to verify invalid key + " + username + " <> " + key);
+                            return res.json({status: "error", error: "Invalid key given"});
+                        }
+                        res.json({status: "OK"});
+                        db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
+                            .then(function (err) {
+                                console.log("db update for validating user");
+
+                            }) .catch(function(err) {
+                                console.log("something went wrong while validating users");
+                                console.log(err);
+
+                            });
+                    }) .catch(function (err) {
+                        console.log("something went wrong while connecting.")
+                        console.log(err);
+                        return res.json({status: "error", error: "connection error"});
+                    });
+            }
         }) .catch(function (err) {
             console.log(err);
             return res.json({status: "error", error: "connection error"});
