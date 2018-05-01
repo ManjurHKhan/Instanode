@@ -174,7 +174,7 @@ app.post('/login', function (req, res) {
             return res.json({status: "error", error: "not valid data"});
         }
         // validate loging
-        console.log(password);
+        console.log("trying to log in", username, password);
         db.one("SELECT salt, password FROM USERS where username=$1 and validated is True", [username])
             .then(function (new_data) {
                 if(new_data == null) {
@@ -258,16 +258,20 @@ app.post("/verify", function(req, res) {
             console.log(new_data);
             var username = new_data.username;
             if (key == 'abracadabra') {
-                res.json({status: "OK"});
+                
                 db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
                     .then(function (err) {
                         console.log("db update for validating user");
+                        res.json({status: "OK"});
 
                     }) .catch(function(err) {
                         console.log("something went wrong while validating users");
                         console.log(err);
+                        res.json({status: "error", msg: "Abra failed....:( "});
 
                     });
+                
+
             }else{
                 db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
                     .then(function (new_data) {
@@ -451,7 +455,7 @@ app.post('/additem', function (req, res) {
 
 app.get("/item/:id", function(req, res) {
     
-    var id = req.param('id');
+    var id = req.params.id;
 
     console.log("doing get item for == " + id);
 
