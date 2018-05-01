@@ -1075,7 +1075,7 @@ app.post("/item/:id/like", function(req, res) {
 
 
     var user_session =  req.cookies;
-    username = user_session['userID'] == '' ? null : user_session['userID'];
+    var username = user_session['userID'] == '' ? null : user_session['userID'];
     console.log("liking post with id - " + id + " --- " + username)
 
     if(username == null) {
@@ -1099,7 +1099,7 @@ app.post("/item/:id/like", function(req, res) {
             db.none("INSERT INTO likes (username, postid) VALUES ($1, $2);", [username, id])
             .then (function (){
 
-                db.none("BEGIN; UPDATE posts set numliked = numliked+1 where postid=$1; COMMIT;", [id])
+                db.none("UPDATE posts set numliked = numliked+1 where postid=$1;", [id])
                     .then(function () {
                         console.log("SUcESS in updating");
 
@@ -1144,7 +1144,7 @@ app.post("/item/:id/like", function(req, res) {
                     return;
                 }
 
-                db.none("BEGIN; UPDATE posts set numliked = numliked-1 where postid=$1; COMMIT;", [id])
+                db.none(" UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
                     .then(function () {
                         // res.json({status:"OK",msg:"Unliked and decremented like count in post"})
                         return;
