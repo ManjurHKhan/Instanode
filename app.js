@@ -94,64 +94,58 @@ app.post('/adduser', function(req, res) {
     }
 
     /** check if the user already exists **/
-    db.task(function(tim) {
-        tim.any("SELECT * FROM USERS where username=$1 or email=$2;", [username, email])
-            .then(function (new_data) {
-                if(new_data == null || new_data.length == 0) {
-                    console.log("user " + username + " does not exist. returning and adding user");
-                    
-                    var random_num = Math.random()*Date.now() | 0;
-                    var salty = crypto.createHash('md5').update(random_num.toString()).digest('hex');
-                    var passwd = crypto.createHash('md5').update(password + salty).digest('hex');
-                    
-                    random_num = (Math.random()*Date.now() | 0).toString();
-                    var val_key = crypto.createHash('md5').update(random_num).digest('hex');
-                    console.log(util.format("INSERT INTO USERS (username,password,email,salt) VALUES (%s,%s,%s,%s)", username,passwd,email,salty));
+    db.any("SELECT * FROM USERS where username=$1 or email=$2;", [username, email])
+        .then(function (new_data) {
+            if(new_data == null || new_data.length == 0) {
+                console.log("user " + username + " does not exist. returning and adding user");
+                
+                var random_num = Math.random()*Date.now() | 0;
+                var salty = crypto.createHash('md5').update(random_num.toString()).digest('hex');
+                var passwd = crypto.createHash('md5').update(password + salty).digest('hex');
+                
+                random_num = (Math.random()*Date.now() | 0).toString();
+                var val_key = crypto.createHash('md5').update(random_num).digest('hex');
+                console.log(util.format("INSERT INTO USERS (username,password,email,salt) VALUES (%s,%s,%s,%s)", username,passwd,email,salty));
 
-                    console.log(LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)));
+                console.log(LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)));
 
-                    tim.none("INSERT INTO USERS (username,password,email,salt) VALUES ($1,$2,$3,$4)", [username,passwd,email,salty])
-                        .then(function() {
-                            console.log("added new user :D");
-                            res.json({status: "OK"});
-                            tim.none("INSERT INTO VALIDATE (username,validkey) VALUES ($1,$2)", [username,val_key])
-                                .then(function() {
-                                    console.log("validation key successfully added");
-                                }) .catch(function (err) {
-                                    console.log("validation key adding got wrong");
-                                    console.log(err);
-                                });
-
-                            // send the email
-                            // TODO figure out what to do with email. I vote for letting the email be handled by storage server
-                            request({
-                                uri: 'http://' + LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)),
-                                method : "GET",
-                                followRedirect: true
-                            }, function(err) {
-                                if(err){
-                                    return res.json({status: "error", error: "connection errors"});
-                                    console.log("err in sending email");
-                                    console.log(err);
-                                }
+                db.none("INSERT INTO USERS (username,password,email,salt) VALUES ($1,$2,$3,$4)", [username,passwd,email,salty])
+                    .then(function() {
+                        console.log("added new user :D");
+                        res.json({status: "OK"});
+                        db.none("INSERT INTO VALIDATE (username,validkey) VALUES ($1,$2)", [username,val_key])
+                            .then(function() {
+                                console.log("validation key successfully added");
+                            }) .catch(function (err) {
+                                console.log("validation key adding got wrong");
+                                console.log(err);
                             });
-                        }) .catch(function (err) {
-                            console.log("uh something went wrong when doing add user");
-                            console.log(err);
-                        });
 
-                } else {
-                    return res.json({status: "error", error: "User exists"});
-                }
-            }) .catch(function (err) {
-                console.log("ERRR :(", err);
-                return res.json({status: "error", error: "error on db function"});
-            });
-        }) .then(function () {})
-            .catch(function (err) {
-                console.log(err);
-            })
-    
+                        // send the email
+                        // TODO figure out what to do with email. I vote for letting the email be handled by storage server
+                        request({
+                            uri: 'http://' + LOAD_BALANCER_IP + util.format('/email?to=%s&text=%s', encodeURIComponent(email), encodeURIComponent(val_key)),
+                            method : "GET",
+                            followRedirect: true
+                        }, function(err) {
+                            if(err){
+                                return res.json({status: "error", error: "connection errors"});
+                                console.log("err in sending email");
+                                console.log(err);
+                            }
+                        });
+                    }) .catch(function (err) {
+                        console.log("uh something went wrong when doing add user");
+                        console.log(err);
+                    });
+
+            } else {
+                return res.json({status: "error", error: "User exists"});
+            }
+        }) .catch(function (err) {
+            console.log("ERRR :(", err);
+            return res.json({status: "error", error: "error on db function"});
+        });
 
 });
 
@@ -255,59 +249,56 @@ app.post("/verify", function(req, res) {
         return res.json({status: "error", error: "No data was sent on res.body"});
     }
 
-    db.task(function(tim) {
-        tim.one("SELECT username FROM users where email=$1 and validated is False", [email])
-            .then(function (new_data) {
-                if(new_data == null || new_data.length == 0) {
-                    return res.json({status: "error", error: "Invalid verify inputs"});
-                }
-                console.log("inside select username on verify");
-                console.log(new_data);
-                var username = new_data.username;
-                if (key == 'abracadabra') {
-                    
-                    tim.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
-                        .then(function (err) {
-                            console.log("db update for validating user");
-                            res.json({status: "OK"});
+    db.one("SELECT username FROM users where email=$1 and validated is False", [email])
+        .then(function (new_data) {
+            if(new_data == null || new_data.length == 0) {
+                return res.json({status: "error", error: "Invalid verify inputs"});
+            }
+            console.log("inside select username on verify");
+            console.log(new_data);
+            var username = new_data.username;
+            if (key == 'abracadabra') {
+                
+                db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
+                    .then(function (err) {
+                        console.log("db update for validating user");
+                        res.json({status: "OK"});
 
-                        }) .catch(function(err) {
-                            console.log("something went wrong while validating users");
-                            console.log(err);
-                            res.json({status: "error", msg: "Abra failed....:( "});
+                    }) .catch(function(err) {
+                        console.log("something went wrong while validating users");
+                        console.log(err);
+                        res.json({status: "error", msg: "Abra failed....:( "});
 
-                        });
-                    
+                    });
+                
 
-                }else{
-                    tim.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
-                        .then(function (new_data) {
-                            if((new_data == null || Object.keys(new_data).length == 0)) {
-                                console.log("failed to verify invalid key + " + username + " <> " + key);
-                                return res.json({status: "error", error: "Invalid key given"});
-                            }
-                            res.json({status: "OK"});
-                            tim.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
-                                .then(function (err) {
-                                    console.log("db update for validating user");
+            }else{
+                db.any("SELECT username FROM validate where username=$1 and validkey=$2", [username, key])
+                    .then(function (new_data) {
+                        if((new_data == null || Object.keys(new_data).length == 0)) {
+                            console.log("failed to verify invalid key + " + username + " <> " + key);
+                            return res.json({status: "error", error: "Invalid key given"});
+                        }
+                        res.json({status: "OK"});
+                        db.none("UPDATE users set validated=True where username=$1 and validated is False", [username])
+                            .then(function (err) {
+                                console.log("db update for validating user");
 
-                                }) .catch(function(err) {
-                                    console.log("something went wrong while validating users");
-                                    console.log(err);
+                            }) .catch(function(err) {
+                                console.log("something went wrong while validating users");
+                                console.log(err);
 
-                                });
-                        }) .catch(function (err) {
-                            console.log("something went wrong while connecting.")
-                            console.log(err);
-                            return res.json({status: "error", error: "connection error"});
-                        });
-                }
-            }) .catch(function (err) {
-                console.log(err);
-                return res.json({status: "error", error: "connection error"});
-            });
-    })
-    
+                            });
+                    }) .catch(function (err) {
+                        console.log("something went wrong while connecting.")
+                        console.log(err);
+                        return res.json({status: "error", error: "connection error"});
+                    });
+            }
+        }) .catch(function (err) {
+            console.log(err);
+            return res.json({status: "error", error: "connection error"});
+        });
 
 });
 
@@ -388,8 +379,8 @@ app.post('/additem', function (req, res) {
         if (parent != null) {
             //query = "INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);"
 
-            db.task(function(tim){
-                tim.none("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);",[user_cookie, postid, content, childType, parent])
+            db.task(function(){
+                db.none("INSERT INTO posts(username, postid, content, child_type, parent_id) VALUES ($1, $2, $3, $4, $5);",[user_cookie, postid, content, childType, parent])
                 .then(function (b) {
                 //   res.status(200)
                 //     .json({
@@ -401,7 +392,7 @@ app.post('/additem', function (req, res) {
 
 
 
-                    tim.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1;", [parent])
+                    db.none("UPDATE posts set retweet_cnt = retweet_cnt+1 where postid=$1;", [parent])
                     .then(function () {
                         console.log("ADDED NEW ITEM TO WITH PARENT ELE");
                     }).catch(function (err) {
@@ -925,23 +916,23 @@ app.get("/user/:username", function(req, res) {
     }
     var ret_user = {'email':null, "followers":0, "following":0}
   
-    db.task (function(tim){
+    db.task (function(){
         console.log("LSKDJFLKADJS")
-        tim.one("SELECT email FROM users where username = $1",[username])
+        db.one("SELECT email FROM users where username = $1",[username])
         .then(function (new_data) {
             //console.log("selecting followers of username relation fine")
             if (new_data == null || new_data.length == 0){
                 return res.json ({status: "error", error: "User info not found or missing - email"});
             }else{
                 ret_user ["email"] = new_data["email"];
-                tim.one("SELECT COUNT(follows) FROM followers where follows = $1", [username])
+                db.one("SELECT COUNT(follows) FROM followers where follows = $1", [username])
                     .then(function (following_data){
                         if (following_data == null || following_data.length == 0){
                             return res.json ({status: "error", error: "User info not found or missing - email"});
                         }
                         ret_user["following"] = following_data["count"]
 
-                        tim.one("SELECT COUNT(follows) FROM followers where username = $1", [username])
+                        db.one("SELECT COUNT(follows) FROM followers where username = $1", [username])
                             .then(function (followers_data) {
                                 if (followers_data == null || followers_data.length == 0){
                                     return res.json ({status: "error", error: "User info not found or missing - follower count"});
@@ -1124,11 +1115,11 @@ app.post("/item/:id/like", function(req, res) {
     // We are going to return ok stupidly because for some reason, res.json is not getting processed below... :/ 
     if (like) {
 
-        db.task(function(tim){
-            tim.none("INSERT INTO likes (username, postid) VALUES ($1, $2);", [username, id])
+        db.task(function(){
+            db.none("INSERT INTO likes (username, postid) VALUES ($1, $2);", [username, id])
             .then (function (){
 
-                tim.none("UPDATE posts set numliked = numliked+1 where postid=$1;", [id])
+                db.none("UPDATE posts set numliked = numliked+1 where postid=$1;", [id])
                     .then(function () {
                         console.log("SUcESS in updating");
 
@@ -1164,8 +1155,8 @@ app.post("/item/:id/like", function(req, res) {
 
     }
     else{
-        db.task(function(tim){
-            tim.one("DELETE FROM likes where username=$1 and postid=$2 RETURNING *", [username,id])
+        db.task(function(){
+            db.one("DELETE FROM likes where username=$1 and postid=$2 RETURNING *", [username,id])
             .then (function (unlike_data){
                 if (unlike_data == null || Object.keys(unlike_data).length == 0){
                     res.json({status:"OK",msg:"did not unlike a like that didnt exist"})
@@ -1173,7 +1164,7 @@ app.post("/item/:id/like", function(req, res) {
                     return;
                 }
 
-                tim.none(" UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
+                db.none(" UPDATE posts set numliked = numliked-1 where postid=$1;", [id])
                     .then(function () {
                         res.json({status:"OK",msg:"Unliked and decremented like count in post"})
                         return;
